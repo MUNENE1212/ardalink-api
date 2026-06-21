@@ -1,0 +1,25 @@
+openapi: 3.1.0
+info:
+  title: ArdaLink API
+  version: 0.1.0
+  description: |
+    Canonical contract for ArdaLink API. Regenerate Zod schemas, React Query
+    hooks, and Pydantic models from this file (Phase 3+).
+servers:
+  - url: http://localhost:3000
+    description: Local
+paths:
+  /api/healthz:
+    get:
+      summary: Health probe
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string }
+                  service: { type: string }
+                  version: { type: string }
