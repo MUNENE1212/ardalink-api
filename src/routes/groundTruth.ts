@@ -1,10 +1,18 @@
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type Request } from "express";
 import { desc } from "drizzle-orm";
 import {
-  db,
   groundTruthReportsTable,
   type GroundTruthReport,
 } from "@workspace/db";
+import { withTenantContext } from "../lib/tenancy-context.js";
+
+function requireTenant(req: Request): string {
+  const tenantId = req.tenant?.tenant_id;
+  if (!tenantId) {
+    throw new Error("tenant_id missing from request context");
+  }
+  return tenantId;
+}
 
 const router: IRouter = Router();
 
@@ -82,11 +90,14 @@ router.get("/ground-truth/recent", async (req, res): Promise<void> => {
   );
 
   try {
-    const rows = await db
-      .select()
-      .from(groundTruthReportsTable)
-      .orderBy(desc(groundTruthReportsTable.createdAt))
-      .limit(limit);
+    const tenantId = requireTenant(req);
+    const rows = await withTenantContext(tenantId, (tx) =>
+      tx
+        .select()
+        .from(groundTruthReportsTable)
+        .orderBy(desc(groundTruthReportsTable.createdAt))
+        .limit(limit),
+    );
     res.json(rows.map(toApiReport));
   } catch (err) {
     req.log.error({ err }, "Failed to list recent ground-truth reports");
@@ -129,12 +140,15 @@ const QUADRANTS = ["NW", "NE", "SW", "SE"] as const;
  */
 router.get("/ground-truth/summary", async (req, res): Promise<void> => {
   try {
+    const tenantId = requireTenant(req);
     // Last 90 days of reports keeps the dashboard fresh without scanning everything
-    const rows = await db
-      .select()
-      .from(groundTruthReportsTable)
-      .orderBy(desc(groundTruthReportsTable.createdAt))
-      .limit(500);
+    const rows = await withTenantContext(tenantId, (tx) =>
+      tx
+        .select()
+        .from(groundTruthReportsTable)
+        .orderBy(desc(groundTruthReportsTable.createdAt))
+        .limit(500),
+    );
 
     const now = Date.now();
     const sevenDaysAgo = now - 7 * 24 * 60 * 60 * 1000;

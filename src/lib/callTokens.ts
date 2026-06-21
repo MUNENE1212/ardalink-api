@@ -179,6 +179,8 @@ export interface MintOptions {
    * cooldown + per-IP daily cap so one machine cannot rotate fake phone
    * numbers and drain the global budget. */
   ip?: string | null;
+  /** Tenant id from the verified JWT. Required since the pilot expansion. */
+  tenantId?: string;
 }
 
 export interface MintResult {

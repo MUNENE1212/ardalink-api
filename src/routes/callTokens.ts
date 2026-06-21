@@ -29,7 +29,12 @@ router.post("/call-tokens", requireTrustedOrigin, async (req, res) => {
       : undefined;
 
   try {
-    const { token, expiresAt } = await mintToken({ phone, ip: req.ip ?? null });
+    const tenantId = req.tenant?.tenant_id ?? "default";
+    const { token, expiresAt } = await mintToken({
+      phone,
+      ip: req.ip ?? null,
+      tenantId,
+    });
     req.log.info(
       {
         token: token.slice(0, 8) + "…",
