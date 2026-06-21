@@ -4,7 +4,10 @@
 // for the few-km scale of Bula Pesa Ward.
 
 import { BULA_PESA_LANDMARKS, type Landmark } from "./bulaPesaLandmarks.js";
-import { BULA_PESA_WATER_POINTS, type WaterPoint } from "./bulaPesaWaterPoints.js";
+import {
+  BULA_PESA_WATER_POINTS,
+  type WaterPoint,
+} from "./bulaPesaWaterPoints.js";
 
 const EARTH_RADIUS_KM = 6371;
 
@@ -59,8 +62,14 @@ export function nearestWaterPointForLandmark(
  * the prompt stays short. The model sees this and can quote distances itself.
  */
 export function formatProximityBlock(): string {
-  const byQuad: Record<string, Array<{ lm: Landmark; nw: NearestWaterPoint }>> = {
-    NW: [], NE: [], SW: [], SE: [],
+  const byQuad: Record<
+    string,
+    Array<{ lm: Landmark; nw: NearestWaterPoint }>
+  > = {
+    NW: [],
+    NE: [],
+    SW: [],
+    SE: [],
   };
   for (const lm of BULA_PESA_LANDMARKS) {
     const [nw] = nearestWaterPoints(lm, 1);
@@ -73,8 +82,8 @@ export function formatProximityBlock(): string {
   const lines: string[] = [
     "PROXIMITY CHEAT-SHEET (landmark → nearest known water point, km):",
     "Use this to ANSWER the distance question yourself. Do NOT ask the herder for kilometres — they don't think in km. Instead, when they name a place, say:",
-    "  Swahili: \"…basi uko karibu na <water point>, ni karibu km <X> kutoka <landmark>, sivyo?\"",
-    "  English: \"…so you're near <water point>, about <X> km from <landmark>, right?\"",
+    '  Swahili: "…basi uko karibu na <water point>, ni karibu km <X> kutoka <landmark>, sivyo?"',
+    '  English: "…so you\'re near <water point>, about <X> km from <landmark>, right?"',
     "and let them confirm or correct. Only use entries below — never invent a distance.",
     "NOTE: distances are straight-line (as the crow flies). Real walking routes are longer, so if the herder says it feels further, trust them and classify conservatively near the 5 km / 10 km thresholds.",
     "",

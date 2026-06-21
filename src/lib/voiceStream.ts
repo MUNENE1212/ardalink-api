@@ -9,7 +9,11 @@ import {
   formatWaterPointUsageBlock,
 } from "./memory.js";
 import { formatSatelliteWaterBodiesBlock } from "./waterBodies.js";
-import { generateActionTag, extractIndicators, indicatorCollectionBlock } from "./openai.js";
+import {
+  generateActionTag,
+  extractIndicators,
+  indicatorCollectionBlock,
+} from "./openai.js";
 import { computeTrustScore, logTrustScore } from "./trustScore.js";
 import { logger } from "./logger.js";
 import { db, groundTruthReportsTable } from "@workspace/db";
@@ -22,8 +26,8 @@ const REALTIME_DEPLOYMENT =
 const REALTIME_API_VERSION = "2025-04-01-preview";
 
 function realtimeUrl(): string {
-  const base = process.env.AZURE_OPENAI_ENDPOINT!
-    .replace(/^https:\/\//, "wss://")
+  const base = process.env
+    .AZURE_OPENAI_ENDPOINT!.replace(/^https:\/\//, "wss://")
     .replace(/\/$/, "");
   return `${base}/openai/realtime?api-version=${REALTIME_API_VERSION}&deployment=${REALTIME_DEPLOYMENT}`;
 }
@@ -38,12 +42,14 @@ async function buildSystemPrompt(
 
   // Pull memory + dynamic blocks in parallel — herder-specific, ward-wide,
   // water-point usage stats from ground-truth, and satellite-detected open water.
-  const [herderMemory, wardRollup, waterUsage, waterBodies] = await Promise.all([
-    formatHerderMemoryBlock(phone),
-    formatWardRollupBlock(),
-    formatWaterPointUsageBlock(),
-    formatSatelliteWaterBodiesBlock(),
-  ]);
+  const [herderMemory, wardRollup, waterUsage, waterBodies] = await Promise.all(
+    [
+      formatHerderMemoryBlock(phone),
+      formatWardRollupBlock(),
+      formatWaterPointUsageBlock(),
+      formatSatelliteWaterBodiesBlock(),
+    ],
+  );
   const memoryBlock = [herderMemory, wardRollup, waterUsage]
     .filter(Boolean)
     .join("\n\n");
@@ -159,7 +165,7 @@ export function handleVoiceStream(atWs: WebSocket, phone: string): void {
   let streamSid: string | null = null;
   let openaiWs: WebSocket | null = null;
   let callEnded = false;
-  let endCallScheduled = false;       // latch: only honour the first end_call tool invocation
+  let endCallScheduled = false; // latch: only honour the first end_call tool invocation
   let endCallFallbackTimer: NodeJS.Timeout | null = null;
   let waitingForFinalAudioDone = false; // close on next response.audio.done after end_call
   // Server-side gate: reject end_call invocations that fire before the model
@@ -182,8 +188,22 @@ export function handleVoiceStream(atWs: WebSocket, phone: string): void {
   // turns despite being <4 chars. Without this, "la", "ndio", "poa",
   // "yes" wouldn't open the end_call gate and the model would loop.
   const SHORT_AFFIRM_WORDS = new Set([
-    "yes", "no", "ok", "okay", "yeah", "yep", "sure",
-    "la", "ndio", "ndiyo", "sawa", "poa", "haya", "eh", "ee", "eee",
+    "yes",
+    "no",
+    "ok",
+    "okay",
+    "yeah",
+    "yep",
+    "sure",
+    "la",
+    "ndio",
+    "ndiyo",
+    "sawa",
+    "poa",
+    "haya",
+    "eh",
+    "ee",
+    "eee",
   ]);
   const isSubstantiveTurn = (text: string): boolean => {
     if (text.length >= 4) return true;
@@ -287,7 +307,10 @@ Greet the herder warmly and ask about the current state of their rangeland and l
     switch (type) {
       // ── Session configured → safe to request the opening greeting ─────────
       case "session.updated": {
-        logger.info({ phone }, "Azure Realtime session.updated — requesting opening greeting");
+        logger.info(
+          { phone },
+          "Azure Realtime session.updated — requesting opening greeting",
+        );
         openaiWs!.send(
           JSON.stringify({
             type: "response.create",
@@ -335,7 +358,8 @@ Greet the herder warmly and ask about the current state of their rangeland and l
 
       // ── New response starting → clear any leftover suppression ────────────
       case "response.created": {
-        const respId = (event["response"] as { id?: string } | undefined)?.id ?? null;
+        const respId =
+          (event["response"] as { id?: string } | undefined)?.id ?? null;
         activeAzureResponseId = respId;
         // Never gag a fresh response with leftover suppression from a
         // previous cancel. Without this, a race where the cancel arrives
@@ -352,11 +376,17 @@ Greet the herder warmly and ask about the current state of their rangeland and l
           // ever fires, and suppressAudioUntilResponseDone stays true →
           // AI is mute for the rest of the call.
           if (activeAzureResponseId) {
-            logger.info({ phone, responseId: activeAzureResponseId }, "[Voice] barge-in — cancelling AI response");
+            logger.info(
+              { phone, responseId: activeAzureResponseId },
+              "[Voice] barge-in — cancelling AI response",
+            );
             openaiWs.send(JSON.stringify({ type: "response.cancel" }));
             suppressAudioUntilResponseDone = true;
           } else {
-            logger.info({ phone }, "[Voice] barge-in with no live response — flushing AT buffer only");
+            logger.info(
+              { phone },
+              "[Voice] barge-in with no live response — flushing AT buffer only",
+            );
           }
           // Tell AT to clear its outbound media buffer so the caller hears
           // their own voice immediately instead of the queued AI tail.
@@ -377,7 +407,10 @@ Greet the herder warmly and ask about the current state of their rangeland and l
           if (isSubstantiveTurn(trimmed)) {
             callerTurnCount += 1;
           } else {
-            logger.info({ phone, text: trimmed }, "[Voice] sub-substantive transcript — not counted as caller turn");
+            logger.info(
+              { phone, text: trimmed },
+              "[Voice] sub-substantive transcript — not counted as caller turn",
+            );
           }
           logger.info({ phone, text: trimmed }, "Herder said");
         }
@@ -391,15 +424,25 @@ Greet the herder warmly and ask about the current state of their rangeland and l
         const argsRaw = event["arguments"] as string | undefined;
         if (name !== "end_call") break;
         if (endCallScheduled) {
-          logger.info({ phone }, "[Voice] end_call invoked again — ignoring (latch)");
+          logger.info(
+            { phone },
+            "[Voice] end_call invoked again — ignoring (latch)",
+          );
           break;
         }
         const elapsedMs = Date.now() - sessionStartMs;
         const gateOpen =
-          elapsedMs >= MIN_CALL_DURATION_MS && callerTurnCount >= MIN_CALLER_TURNS;
+          elapsedMs >= MIN_CALL_DURATION_MS &&
+          callerTurnCount >= MIN_CALLER_TURNS;
         if (!gateOpen) {
           logger.warn(
-            { phone, elapsedMs, callerTurnCount, minMs: MIN_CALL_DURATION_MS, minTurns: MIN_CALLER_TURNS },
+            {
+              phone,
+              elapsedMs,
+              callerTurnCount,
+              minMs: MIN_CALL_DURATION_MS,
+              minTurns: MIN_CALLER_TURNS,
+            },
             "[Voice] end_call rejected — gate not yet open",
           );
           if (callId && openaiWs?.readyState === WebSocket.OPEN) {
@@ -433,12 +476,17 @@ Greet the herder warmly and ask about the current state of their rangeland and l
         endCallScheduled = true;
         let reason = "unspecified";
         try {
-          const parsed = argsRaw ? (JSON.parse(argsRaw) as { reason?: string }) : {};
+          const parsed = argsRaw
+            ? (JSON.parse(argsRaw) as { reason?: string })
+            : {};
           if (parsed.reason) reason = parsed.reason;
         } catch {
           // ignore — reason stays "unspecified"
         }
-        logger.info({ phone, reason, elapsedMs, callerTurnCount }, "[Voice] AI invoked end_call");
+        logger.info(
+          { phone, reason, elapsedMs, callerTurnCount },
+          "[Voice] AI invoked end_call",
+        );
         if (callId && openaiWs?.readyState === WebSocket.OPEN) {
           openaiWs.send(
             JSON.stringify({
@@ -480,15 +528,23 @@ Greet the herder warmly and ask about the current state of their rangeland and l
       case "error": {
         const errVal = event["error"];
         const errObj =
-          errVal && typeof errVal === "object" ? (errVal as Record<string, unknown>) : null;
-        const errCode = errObj && typeof errObj["code"] === "string" ? (errObj["code"] as string) : "";
+          errVal && typeof errVal === "object"
+            ? (errVal as Record<string, unknown>)
+            : null;
+        const errCode =
+          errObj && typeof errObj["code"] === "string"
+            ? (errObj["code"] as string)
+            : "";
         const errMsgRaw =
           errObj && "message" in errObj ? String(errObj["message"]) : "";
         const isBenignCancel =
           errCode === "response_cancel_not_active" ||
           /cancellation failed.*no active response/i.test(errMsgRaw);
         if (isBenignCancel) {
-          logger.info({ phone, code: errCode }, "[Voice] benign cancel race — ignoring");
+          logger.info(
+            { phone, code: errCode },
+            "[Voice] benign cancel race — ignoring",
+          );
           break;
         }
         logger.error({ phone, event }, "OpenAI Realtime error");
@@ -556,9 +612,7 @@ Greet the herder warmly and ask about the current state of their rangeland and l
     openaiWs?.close();
   });
 
-  atWs.on("error", (err) =>
-    logger.error({ err, phone }, "AT WebSocket error"),
-  );
+  atWs.on("error", (err) => logger.error({ err, phone }, "AT WebSocket error"));
 }
 
 // ── Post-call: generate action tag + save to PostgreSQL ────────────────────
@@ -610,7 +664,8 @@ async function endCall(
     const rainfall = cl30?.totalPrecipMm ?? null;
     const et0 = cl30?.totalET0Mm ?? null;
     const soilMoisture = cl30?.meanSoilMoisture ?? null;
-    const ratio = rainfall != null && et0 != null && et0 > 0 ? rainfall / et0 : null;
+    const ratio =
+      rainfall != null && et0 != null && et0 > 0 ? rainfall / et0 : null;
 
     const ind = indicators;
     const completenessPct = ind ? (ind.indicators_collected / 7) * 100 : null;

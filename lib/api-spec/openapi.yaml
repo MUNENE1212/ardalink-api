@@ -247,7 +247,8 @@ components:
           type: ["number", "null"]
         forecast:
           type: object
-      required: [basedOnSatelliteRunAt, stressedPixelPct, worstQuadrant, forecast]
+      required:
+        [basedOnSatelliteRunAt, stressedPixelPct, worstQuadrant, forecast]
 
     TriggerCheckInput:
       type: object
@@ -306,7 +307,21 @@ components:
           type: integer
         lastContactAt:
           type: ["string", "null"]
-      required: [id, createdAt, name, phone, location, cattle, goats, camels, waterSource, alertsEnabled, alertsSent, lastContactAt]
+      required:
+        [
+          id,
+          createdAt,
+          name,
+          phone,
+          location,
+          cattle,
+          goats,
+          camels,
+          waterSource,
+          alertsEnabled,
+          alertsSent,
+          lastContactAt,
+        ]
 
     PastoralistInput:
       type: object

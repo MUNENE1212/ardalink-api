@@ -1,6 +1,10 @@
 import { Router, type IRouter } from "express";
 import { desc } from "drizzle-orm";
-import { db, groundTruthReportsTable, type GroundTruthReport } from "@workspace/db";
+import {
+  db,
+  groundTruthReportsTable,
+  type GroundTruthReport,
+} from "@workspace/db";
 
 const router: IRouter = Router();
 
@@ -58,7 +62,9 @@ function toApiReport(r: GroundTruthReport): ApiReport {
     dataCompletenessPercent: r.dataCompletenessPercent,
     trustScore: r.trustScore,
     trustFlags: Array.isArray(r.trustFlags)
-      ? (r.trustFlags as unknown[]).filter((v): v is string => typeof v === "string")
+      ? (r.trustFlags as unknown[]).filter(
+          (v): v is string => typeof v === "string",
+        )
       : null,
     userFeedback: r.userFeedback,
   };
@@ -70,7 +76,10 @@ function toApiReport(r: GroundTruthReport): ApiReport {
  */
 router.get("/ground-truth/recent", async (req, res): Promise<void> => {
   const rawLimit = parseInt(String(req.query.limit ?? "20"), 10);
-  const limit = Math.min(Math.max(Number.isFinite(rawLimit) ? rawLimit : 20, 1), 100);
+  const limit = Math.min(
+    Math.max(Number.isFinite(rawLimit) ? rawLimit : 20, 1),
+    100,
+  );
 
   try {
     const rows = await db
@@ -134,7 +143,8 @@ router.get("/ground-truth/summary", async (req, res): Promise<void> => {
       .map((r) => r.dataCompletenessPercent)
       .filter((v): v is number => v != null);
     const avgCompleteness = completenessSamples.length
-      ? completenessSamples.reduce((a, b) => a + b, 0) / completenessSamples.length
+      ? completenessSamples.reduce((a, b) => a + b, 0) /
+        completenessSamples.length
       : null;
 
     const byQuadrant: QuadrantAggregate[] = QUADRANTS.map((q) => {
@@ -206,7 +216,9 @@ router.get("/ground-truth/summary", async (req, res): Promise<void> => {
 
     const summary: GroundTruthSummary = {
       totalReports: rows.length,
-      reportsLast7Days: rows.filter((r) => r.createdAt.getTime() >= sevenDaysAgo).length,
+      reportsLast7Days: rows.filter(
+        (r) => r.createdAt.getTime() >= sevenDaysAgo,
+      ).length,
       averageCompletenessPercent: avgCompleteness,
       bcsFollowupCount: rows.filter((r) => r.bcsFlagFollowup === true).length,
       byQuadrant,

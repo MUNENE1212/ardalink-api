@@ -5,6 +5,7 @@ name: Bug report
 ## Describe
 
 ## Repro
+
 ```bash
 curl ...
 ```
@@ -12,6 +13,7 @@ curl ...
 ## Expected
 
 ## Environment
+
 - Version:
 - Node:
 - Postgres:

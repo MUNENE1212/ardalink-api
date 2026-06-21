@@ -48,7 +48,7 @@ export interface CallSession {
   question: string; // Specific question to ask based on satellite data
   delta: VegetationDelta;
   month: string;
-  climate?: ClimateSnapshot;    // Real-time temperature, rainfall, soil moisture, MAI
+  climate?: ClimateSnapshot; // Real-time temperature, rainfall, soil moisture, MAI
   forecast?: VegetationForecast; // 14-day vegetation stress outlook
   createdAt: Date;
 }

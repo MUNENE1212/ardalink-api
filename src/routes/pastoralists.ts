@@ -50,7 +50,16 @@ router.post("/pastoralists", async (req, res): Promise<void> => {
   try {
     const [row] = await db
       .insert(pastoralistsTable)
-      .values({ name, phone, location, cattle, goats, camels, waterSource, alertsEnabled })
+      .values({
+        name,
+        phone,
+        location,
+        cattle,
+        goats,
+        camels,
+        waterSource,
+        alertsEnabled,
+      })
       .returning();
 
     req.log.info(
@@ -69,7 +78,9 @@ router.post("/pastoralists", async (req, res): Promise<void> => {
  * Remove a pastoralist from the registry.
  */
 router.delete("/pastoralists/:id", async (req, res): Promise<void> => {
-  const parsed = DeletePastoralistParams.safeParse({ id: Number(req.params.id) });
+  const parsed = DeletePastoralistParams.safeParse({
+    id: Number(req.params.id),
+  });
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid id" });
     return;

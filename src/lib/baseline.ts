@@ -33,8 +33,18 @@ export interface VegetationDelta {
 
 const MONTH_PAD = (n: number) => String(n).padStart(2, "0");
 const MONTH_NAMES = [
-  "JAN","FEB","MAR","APR","MAY","JUN",
-  "JUL","AUG","SEP","OCT","NOV","DEC",
+  "JAN",
+  "FEB",
+  "MAR",
+  "APR",
+  "MAY",
+  "JUN",
+  "JUL",
+  "AUG",
+  "SEP",
+  "OCT",
+  "NOV",
+  "DEC",
 ];
 
 // Primary: >25% of vegetated pixels are >15% below their own 10-year history
@@ -56,7 +66,10 @@ export async function getMonthlyBaseline(
 
   if (!resource) throw new Error(`No baseline for month ${month} (${name})`);
 
-  logger.info({ month, name }, "[Baseline Match] Historical baseline retrieved");
+  logger.info(
+    { month, name },
+    "[Baseline Match] Historical baseline retrieved",
+  );
   return resource;
 }
 
@@ -106,17 +119,23 @@ export function calculateDelta(
   }
 
   const pixelTrigger = pixelReasons.length > 0;
-  const pixelTriggerReason = pixelReasons.join("; ") || "Pixel-level vegetation within normal range";
+  const pixelTriggerReason =
+    pixelReasons.join("; ") || "Pixel-level vegetation within normal range";
 
   // ── Ward-mean trigger (secondary / legacy) ────────────────────────────────
   const wardReasons: string[] = [];
   if (NDVI.delta_pct < WARD_MEAN_THRESHOLD)
-    wardReasons.push(`ward-mean NDVI ${NDVI.delta_pct.toFixed(1)}% below 11-year baseline`);
+    wardReasons.push(
+      `ward-mean NDVI ${NDVI.delta_pct.toFixed(1)}% below 11-year baseline`,
+    );
   if (RED_EDGE.delta_pct < WARD_MEAN_THRESHOLD)
-    wardReasons.push(`ward-mean RED_EDGE ${RED_EDGE.delta_pct.toFixed(1)}% below 11-year baseline`);
+    wardReasons.push(
+      `ward-mean RED_EDGE ${RED_EDGE.delta_pct.toFixed(1)}% below 11-year baseline`,
+    );
 
   const wardMeanTrigger = wardReasons.length > 0;
-  const wardMeanTriggerReason = wardReasons.join("; ") || "Ward-mean vegetation within normal range";
+  const wardMeanTriggerReason =
+    wardReasons.join("; ") || "Ward-mean vegetation within normal range";
 
   // ── Combined ──────────────────────────────────────────────────────────────
   const triggered = pixelTrigger || wardMeanTrigger;
@@ -142,6 +161,7 @@ export function calculateDelta(
     wardMeanTrigger,
     wardMeanTriggerReason,
     triggered,
-    trigger_reason: allReasons.join("; ") || "Vegetation within normal range — no alert",
+    trigger_reason:
+      allReasons.join("; ") || "Vegetation within normal range — no alert",
   };
 }

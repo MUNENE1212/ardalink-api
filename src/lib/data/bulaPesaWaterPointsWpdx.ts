@@ -31,4 +31,5 @@ export interface WpdxWaterPoint {
   insideWard: boolean;
 }
 
-export const BULA_PESA_WATER_POINTS_WPDX: readonly WpdxWaterPoint[] = Object.freeze([]) as readonly WpdxWaterPoint[];
+export const BULA_PESA_WATER_POINTS_WPDX: readonly WpdxWaterPoint[] =
+  Object.freeze([]) as readonly WpdxWaterPoint[];

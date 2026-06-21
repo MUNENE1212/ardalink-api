@@ -19,10 +19,7 @@ export async function saveSatelliteSnapshot(
       newestImageDate,
       result: result as unknown as Record<string, unknown>,
     });
-    logger.info(
-      { newestImageDate },
-      "[Cache] Satellite snapshot persisted",
-    );
+    logger.info({ newestImageDate }, "[Cache] Satellite snapshot persisted");
   } catch (err) {
     logger.error({ err }, "[Cache] Failed to persist satellite snapshot");
   }

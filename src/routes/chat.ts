@@ -35,15 +35,21 @@ const QUAD_TO_PLACE: Record<"NW" | "NE" | "SW" | "SE", string> = {
  * Pulls all dynamic blocks in parallel so we don't serialise their DB +
  * Earth Engine lookups on every chat message.
  */
-async function buildTalkChatSystemPrompt(phone: string | null): Promise<string> {
+async function buildTalkChatSystemPrompt(
+  phone: string | null,
+): Promise<string> {
   const last = getLastResult();
-  const [herderMemory, wardRollup, waterUsage, waterBodies] = await Promise.all([
-    formatHerderMemoryBlock(phone),
-    formatWardRollupBlock(),
-    formatWaterPointUsageBlock(),
-    formatSatelliteWaterBodiesBlock(),
-  ]);
-  const memoryBlock = [herderMemory, wardRollup, waterUsage].filter(Boolean).join("\n\n");
+  const [herderMemory, wardRollup, waterUsage, waterBodies] = await Promise.all(
+    [
+      formatHerderMemoryBlock(phone),
+      formatWardRollupBlock(),
+      formatWaterPointUsageBlock(),
+      formatSatelliteWaterBodiesBlock(),
+    ],
+  );
+  const memoryBlock = [herderMemory, wardRollup, waterUsage]
+    .filter(Boolean)
+    .join("\n\n");
 
   const now = new Date();
   const dateStr = now.toISOString().split("T")[0];
@@ -73,11 +79,15 @@ ${memoryBlock ? memoryBlock + "\n\n" : ""}If the user asks about a specific area
 
   const anomaly = last.live?.anomaly;
   const worstPlace = anomaly
-    ? QUAD_TO_PLACE[anomaly.worstQuadrant as keyof typeof QUAD_TO_PLACE] ?? anomaly.worstQuadrant
+    ? (QUAD_TO_PLACE[anomaly.worstQuadrant as keyof typeof QUAD_TO_PLACE] ??
+      anomaly.worstQuadrant)
     : "";
   const quadBreakdown = anomaly
     ? (["NW", "NE", "SW", "SE"] as const)
-        .map((q) => `  • ${QUAD_TO_PLACE[q]}: ${anomaly.quadrantMeanAnomalyPct[q]?.toFixed(1)}% vs baseline`)
+        .map(
+          (q) =>
+            `  • ${QUAD_TO_PLACE[q]}: ${anomaly.quadrantMeanAnomalyPct[q]?.toFixed(1)}% vs baseline`,
+        )
         .join("\n")
     : "";
 
@@ -170,9 +180,9 @@ ${memoryBlock ? memoryBlock + "\n\n" : ""}Give the user your single most practic
 const router: IRouter = Router();
 
 const AZURE_ENDPOINT = process.env.AZURE_OPENAI_ENDPOINT ?? "";
-const AZURE_API_KEY  = process.env.AZURE_OPENAI_API_KEY ?? "";
-const DEPLOYMENT     = process.env.AZURE_OPENAI_CHAT_DEPLOYMENT ?? "gpt-4o";
-const API_VERSION    = "2025-01-01-preview";
+const AZURE_API_KEY = process.env.AZURE_OPENAI_API_KEY ?? "";
+const DEPLOYMENT = process.env.AZURE_OPENAI_CHAT_DEPLOYMENT ?? "gpt-4o";
+const API_VERSION = "2025-01-01-preview";
 
 function clientIp(req: Request): string | null {
   // app.set("trust proxy", true) is set in server bootstrap, so req.ip is
@@ -275,12 +285,15 @@ When the user asks in Swahili, respond in Swahili. When they ask in English, res
 
     if (!response.ok) {
       const errText = await response.text();
-      req.log.error({ status: response.status, body: errText }, "Azure OpenAI chat error");
+      req.log.error(
+        { status: response.status, body: errText },
+        "Azure OpenAI chat error",
+      );
       res.status(502).json({ error: "AI service error" });
       return;
     }
 
-    const json = await response.json() as {
+    const json = (await response.json()) as {
       choices: Array<{ message: { content: string } }>;
     };
 
@@ -299,9 +312,9 @@ When the user asks in Swahili, respond in Swahili. When they ask in English, res
       reply,
       context: {
         stressedPixelPct: last?.live.anomaly.wardStressedPixelPct ?? null,
-        worstQuadrant:    last?.live.anomaly.worstQuadrant ?? null,
-        riskLevel:        last?.forecast?.outlook.riskLevel ?? null,
-        dataDate:         last?.live.imageDates[0] ?? null,
+        worstQuadrant: last?.live.anomaly.worstQuadrant ?? null,
+        riskLevel: last?.forecast?.outlook.riskLevel ?? null,
+        dataDate: last?.live.imageDates[0] ?? null,
       },
     });
   } catch (err: unknown) {
@@ -354,7 +367,9 @@ router.post("/talk-chat", async (req, res): Promise<void> => {
       });
       return;
     }
-    res.status(400).json({ error: "message_empty", message: "Message is empty." });
+    res
+      .status(400)
+      .json({ error: "message_empty", message: "Message is empty." });
     return;
   }
 
@@ -365,14 +380,18 @@ router.post("/talk-chat", async (req, res): Promise<void> => {
   // Phone is optional — when present we can wire in per-caller herder memory
   // (the same data the voice bridge uses). We accept it loosely from
   // req.body since ChatWithLandBody is shared with the admin route.
-  const rawPhone = typeof req.body?.phone === "string" ? req.body.phone.trim() : "";
+  const rawPhone =
+    typeof req.body?.phone === "string" ? req.body.phone.trim() : "";
   const phone = /^\+\d{6,15}$/.test(rawPhone) ? rawPhone : null;
 
   // sessionId — client-generated UUID, one per tab. Used to upsert a single
   // ground_truth_reports row per chat session instead of creating a new row
   // on every message. Validate loosely (must be short alphanum-ish).
-  const rawSessionId = typeof req.body?.sessionId === "string" ? req.body.sessionId.trim() : "";
-  const sessionId = /^[A-Za-z0-9_-]{8,64}$/.test(rawSessionId) ? rawSessionId : null;
+  const rawSessionId =
+    typeof req.body?.sessionId === "string" ? req.body.sessionId.trim() : "";
+  const sessionId = /^[A-Za-z0-9_-]{8,64}$/.test(rawSessionId)
+    ? rawSessionId
+    : null;
 
   const systemPrompt = await buildTalkChatSystemPrompt(phone);
   const last = getLastResult();
@@ -394,16 +413,31 @@ router.post("/talk-chat", async (req, res): Promise<void> => {
 
     if (!response.ok) {
       const errText = await response.text();
-      req.log.error({ status: response.status, body: errText }, "Talk-chat Azure error");
-      res.status(502).json({ error: "ai_unavailable", message: "AI is temporarily unavailable. Try again shortly." });
+      req.log.error(
+        { status: response.status, body: errText },
+        "Talk-chat Azure error",
+      );
+      res.status(502).json({
+        error: "ai_unavailable",
+        message: "AI is temporarily unavailable. Try again shortly.",
+      });
       return;
     }
 
-    const json = await response.json() as { choices: Array<{ message: { content: string } }> };
+    const json = (await response.json()) as {
+      choices: Array<{ message: { content: string } }>;
+    };
     const reply = json.choices[0]?.message?.content ?? "";
 
     req.log.info(
-      { ip, phone: phone ?? "(anon)", sessionId: sessionId ?? "(none)", msgLen: message.length, replyLen: reply.length, remaining: getTalkChatRemaining(ip) },
+      {
+        ip,
+        phone: phone ?? "(anon)",
+        sessionId: sessionId ?? "(none)",
+        msgLen: message.length,
+        replyLen: reply.length,
+        remaining: getTalkChatRemaining(ip),
+      },
       "[TalkChat] reply generated",
     );
 
@@ -427,9 +461,9 @@ router.post("/talk-chat", async (req, res): Promise<void> => {
       maxMessageLength: TALK_CHAT_MAX_MESSAGE_LENGTH,
       context: {
         stressedPixelPct: last?.live.anomaly.wardStressedPixelPct ?? null,
-        worstQuadrant:    last?.live.anomaly.worstQuadrant ?? null,
-        riskLevel:        last?.forecast?.outlook.riskLevel ?? null,
-        dataDate:         last?.live.imageDates[0] ?? null,
+        worstQuadrant: last?.live.anomaly.worstQuadrant ?? null,
+        riskLevel: last?.forecast?.outlook.riskLevel ?? null,
+        dataDate: last?.live.imageDates[0] ?? null,
       },
     });
   } catch (err: unknown) {

@@ -30,8 +30,7 @@ router.post("/trigger-check", async (req, res): Promise<void> => {
 
   const dryRun = body.dryRun === true;
   const forceAlert = body.forceAlert === true;
-  const phone: string =
-    body.phone ?? process.env.RECIPIENT_PHONE ?? "";
+  const phone: string = body.phone ?? process.env.RECIPIENT_PHONE ?? "";
 
   if (!dryRun && !phone) {
     res.status(400).json({
@@ -42,11 +41,16 @@ router.post("/trigger-check", async (req, res): Promise<void> => {
   }
 
   if (getIsRunning()) {
-    res.status(409).json({ error: "Intelligence cycle already running — try again shortly." });
+    res.status(409).json({
+      error: "Intelligence cycle already running — try again shortly.",
+    });
     return;
   }
 
-  req.log.info({ phone: phone || "(dry run)", dryRun, forceAlert }, "Intelligence cycle triggered");
+  req.log.info(
+    { phone: phone || "(dry run)", dryRun, forceAlert },
+    "Intelligence cycle triggered",
+  );
 
   try {
     const result = await runIntelligenceCycle(phone, { dryRun, forceAlert });
@@ -96,16 +100,16 @@ router.get("/forecast", async (req, res): Promise<void> => {
   try {
     const forecast = await computeForecast({
       stressedPixelPct: last.live.anomaly.wardStressedPixelPct,
-      worstQuadrant:    last.live.anomaly.worstQuadrant,
-      currentMAI:       last.climate?.rolling30Day.moistureAdequacyIndex ?? 0.5,
-      month:            last.month,
+      worstQuadrant: last.live.anomaly.worstQuadrant,
+      currentMAI: last.climate?.rolling30Day.moistureAdequacyIndex ?? 0.5,
+      month: last.month,
     });
 
     req.log.info(
       {
-        riskLevel:           forecast.outlook.riskLevel,
-        stressDirection:     forecast.outlook.stressDirection,
-        forecastMAI:         forecast.forecast14d.forecastMAI,
+        riskLevel: forecast.outlook.riskLevel,
+        stressDirection: forecast.outlook.stressDirection,
+        forecastMAI: forecast.forecast14d.forecastMAI,
         estimatedRecoveryDays: forecast.outlook.estimatedRecoveryDays,
       },
       "Forecast computed",
@@ -113,9 +117,9 @@ router.get("/forecast", async (req, res): Promise<void> => {
 
     res.json({
       basedOnSatelliteRunAt: last.timestamp,
-      stressedPixelPct:      last.live.anomaly.wardStressedPixelPct,
-      worstQuadrant:         last.live.anomaly.worstQuadrant,
-      currentMAI:            last.climate?.rolling30Day.moistureAdequacyIndex,
+      stressedPixelPct: last.live.anomaly.wardStressedPixelPct,
+      worstQuadrant: last.live.anomaly.worstQuadrant,
+      currentMAI: last.climate?.rolling30Day.moistureAdequacyIndex,
       forecast,
     });
   } catch (err: unknown) {

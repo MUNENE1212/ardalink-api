@@ -77,7 +77,9 @@ export class TokenCapacityError extends Error {
 export class RateLimitError extends Error {
   retryAfterSeconds: number;
   constructor(retryAfterSeconds: number) {
-    super(`You can speak with ArdaLink again in ~${Math.ceil(retryAfterSeconds / 60)} minutes.`);
+    super(
+      `You can speak with ArdaLink again in ~${Math.ceil(retryAfterSeconds / 60)} minutes.`,
+    );
     this.name = "RateLimitError";
     this.retryAfterSeconds = retryAfterSeconds;
   }
@@ -85,7 +87,9 @@ export class RateLimitError extends Error {
 
 export class ConcurrencyError extends Error {
   constructor() {
-    super("ArdaLink is busy with other callers right now — please try again in a minute.");
+    super(
+      "ArdaLink is busy with other callers right now — please try again in a minute.",
+    );
     this.name = "ConcurrencyError";
   }
 }
@@ -111,15 +115,16 @@ export function canonicalizePhone(raw: string): string {
   if (s.startsWith("+")) {
     // Already E.164-shaped — just validate the digit run.
     const digits = s.slice(1);
-    if (!/^\d{8,15}$/.test(digits)) throw new Error("Phone number is malformed");
+    if (!/^\d{8,15}$/.test(digits))
+      throw new Error("Phone number is malformed");
     return "+" + digits;
   }
 
   // Strip any stray '+' signs that weren't leading.
   s = s.replace(/\+/g, "");
 
-  if (s.startsWith("00")) s = s.slice(2);            // 00254... → 254...
-  if (s.startsWith("0")) s = "254" + s.slice(1);     // 0712... → 254712...
+  if (s.startsWith("00")) s = s.slice(2); // 00254... → 254...
+  if (s.startsWith("0")) s = "254" + s.slice(1); // 0712... → 254712...
   // Bare local-without-leading-zero (e.g. 712345678 — 9 digits) → assume KE.
   if (s.length === 9 && /^[17]/.test(s)) s = "254" + s;
 
@@ -241,7 +246,9 @@ export async function mintToken(opts: MintOptions = {}): Promise<MintResult> {
     if (last != null) {
       const elapsed = Date.now() - last;
       if (elapsed < PER_PHONE_COOLDOWN_MS) {
-        const retryAfterSeconds = Math.ceil((PER_PHONE_COOLDOWN_MS - elapsed) / 1000);
+        const retryAfterSeconds = Math.ceil(
+          (PER_PHONE_COOLDOWN_MS - elapsed) / 1000,
+        );
         throw new RateLimitError(retryAfterSeconds);
       }
     }
@@ -255,7 +262,9 @@ export async function mintToken(opts: MintOptions = {}): Promise<MintResult> {
       if (lastIp != null) {
         const elapsedIp = Date.now() - lastIp;
         if (elapsedIp < PER_IP_COOLDOWN_MS) {
-          const retryAfterSeconds = Math.ceil((PER_IP_COOLDOWN_MS - elapsedIp) / 1000);
+          const retryAfterSeconds = Math.ceil(
+            (PER_IP_COOLDOWN_MS - elapsedIp) / 1000,
+          );
           throw new RateLimitError(retryAfterSeconds);
         }
       }
@@ -297,7 +306,10 @@ export async function mintToken(opts: MintOptions = {}): Promise<MintResult> {
           waterSource: "Unknown",
           alertsEnabled: true,
         });
-        logger.info({ phone }, "[CallTokens] New pastoralist registered from public talk page");
+        logger.info(
+          { phone },
+          "[CallTokens] New pastoralist registered from public talk page",
+        );
       } else {
         await db
           .update(pastoralistsTable)
@@ -306,7 +318,10 @@ export async function mintToken(opts: MintOptions = {}): Promise<MintResult> {
       }
     } catch (err) {
       // Don't block the call if the DB upsert fails — log and continue.
-      logger.warn({ err, phone }, "[CallTokens] Pastoralist upsert failed (continuing)");
+      logger.warn(
+        { err, phone },
+        "[CallTokens] Pastoralist upsert failed (continuing)",
+      );
     }
   }
 
@@ -357,7 +372,8 @@ export function consumeToken(token: string | null | undefined): ConsumeResult {
   if (!token) return { ok: false, phone: null };
   const rec = tokens.get(token);
   if (!rec) return { ok: false, phone: null };
-  if (Date.now() - rec.createdAt > TOKEN_TTL_MS) return { ok: false, phone: null };
+  if (Date.now() - rec.createdAt > TOKEN_TTL_MS)
+    return { ok: false, phone: null };
   if (rec.consumedAt != null) return { ok: false, phone: null };
   rec.consumedAt = Date.now();
   if (rec.phone) {
@@ -393,7 +409,10 @@ export function registerPublicSessionOpen(): void {
 
 export function registerPublicSessionClosed(): void {
   if (activePublicSessions > 0) activePublicSessions--;
-  logger.info({ activePublicSessions, pendingPublicTokens }, "[CallTokens] Public session closed");
+  logger.info(
+    { activePublicSessions, pendingPublicTokens },
+    "[CallTokens] Public session closed",
+  );
 }
 
 /**
@@ -406,7 +425,11 @@ export function registerPublicSessionClosed(): void {
  * reservation alive on the talk-app side. Safe to call once per session;
  * the reservation handle itself is idempotent.
  */
-export function settleTokenReservation(token: string | null, actualMinutes: number, phone: string | null): void {
+export function settleTokenReservation(
+  token: string | null,
+  actualMinutes: number,
+  phone: string | null,
+): void {
   if (!token) return;
   const rec = tokens.get(token);
   if (!rec || !rec.budgetReservation) return;

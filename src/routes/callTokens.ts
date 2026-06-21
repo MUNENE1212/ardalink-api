@@ -23,20 +23,28 @@ const router: IRouter = Router();
 // page, which may be loaded on a phone where Origin handling varies.
 router.post("/call-tokens", requireTrustedOrigin, async (req, res) => {
   const body = (req.body ?? {}) as { phone?: unknown };
-  const phone = typeof body.phone === "string" && body.phone.trim().length > 0
-    ? body.phone.trim()
-    : undefined;
+  const phone =
+    typeof body.phone === "string" && body.phone.trim().length > 0
+      ? body.phone.trim()
+      : undefined;
 
   try {
     const { token, expiresAt } = await mintToken({ phone, ip: req.ip ?? null });
     req.log.info(
-      { token: token.slice(0, 8) + "…", ttlSec: TOKEN_TTL_SECONDS, hasPhone: phone != null },
+      {
+        token: token.slice(0, 8) + "…",
+        ttlSec: TOKEN_TTL_SECONDS,
+        hasPhone: phone != null,
+      },
       "[CallTokens] Minted",
     );
     res.json({ token, expiresAt, ttlSeconds: TOKEN_TTL_SECONDS });
   } catch (err) {
     if (err instanceof RateLimitError) {
-      req.log.warn({ retryAfterSeconds: err.retryAfterSeconds }, "[CallTokens] Mint rejected — per-phone cooldown");
+      req.log.warn(
+        { retryAfterSeconds: err.retryAfterSeconds },
+        "[CallTokens] Mint rejected — per-phone cooldown",
+      );
       res.setHeader("Retry-After", String(err.retryAfterSeconds));
       res.status(429).json({
         error: "rate_limited",
@@ -51,12 +59,17 @@ router.post("/call-tokens", requireTrustedOrigin, async (req, res) => {
       return;
     }
     if (err instanceof PublicTalkDisabledError) {
-      req.log.warn("[CallTokens] Mint rejected — public talk disabled (kill switch)");
+      req.log.warn(
+        "[CallTokens] Mint rejected — public talk disabled (kill switch)",
+      );
       res.status(503).json({ error: "service_disabled", message: err.message });
       return;
     }
     if (err instanceof BudgetExceededError) {
-      req.log.warn({ resetsAt: err.resetsAt }, "[CallTokens] Mint rejected — daily budget exceeded");
+      req.log.warn(
+        { resetsAt: err.resetsAt },
+        "[CallTokens] Mint rejected — daily budget exceeded",
+      );
       res.status(503).json({
         error: "daily_budget_exceeded",
         message: err.message,
@@ -91,7 +104,9 @@ router.post("/call-tokens", requireTrustedOrigin, async (req, res) => {
       return;
     }
     if (err instanceof UnsupportedRegionError) {
-      req.log.warn("[CallTokens] Mint rejected — unsupported region (non-+254)");
+      req.log.warn(
+        "[CallTokens] Mint rejected — unsupported region (non-+254)",
+      );
       res.status(400).json({
         error: "unsupported_region",
         message: err.message,

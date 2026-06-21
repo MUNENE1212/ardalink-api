@@ -24,11 +24,17 @@ router.get("/public-talk/status", (_req, res) => {
 router.post("/public-talk/switch", requireTrustedOrigin, (req, res) => {
   const body = (req.body ?? {}) as { enabled?: unknown };
   if (typeof body.enabled !== "boolean") {
-    res.status(400).json({ error: "invalid_body", message: "Expected { enabled: boolean }" });
+    res.status(400).json({
+      error: "invalid_body",
+      message: "Expected { enabled: boolean }",
+    });
     return;
   }
   const status = setPublicTalkEnabled(body.enabled);
-  req.log.warn({ enabled: status.enabled }, "[PublicTalk] Kill switch toggled via API");
+  req.log.warn(
+    { enabled: status.enabled },
+    "[PublicTalk] Kill switch toggled via API",
+  );
   res.json(status);
 });
 

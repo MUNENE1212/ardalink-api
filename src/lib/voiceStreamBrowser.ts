@@ -11,7 +11,11 @@ import {
   formatWaterPointUsageBlock,
 } from "./memory.js";
 import { formatSatelliteWaterBodiesBlock } from "./waterBodies.js";
-import { generateActionTag, extractIndicators, indicatorCollectionBlock } from "./openai.js";
+import {
+  generateActionTag,
+  extractIndicators,
+  indicatorCollectionBlock,
+} from "./openai.js";
 import { droughtLabel, maiLabel } from "./climate.js";
 import {
   registerPublicSessionOpen,
@@ -39,8 +43,8 @@ const REALTIME_DEPLOYMENT =
 const REALTIME_API_VERSION = "2025-04-01-preview";
 
 function realtimeUrl(): string {
-  const base = process.env.AZURE_OPENAI_ENDPOINT!
-    .replace(/^https:\/\//, "wss://")
+  const base = process.env
+    .AZURE_OPENAI_ENDPOINT!.replace(/^https:\/\//, "wss://")
     .replace(/\/$/, "");
   return `${base}/openai/realtime?api-version=${REALTIME_API_VERSION}&deployment=${REALTIME_DEPLOYMENT}`;
 }
@@ -49,12 +53,14 @@ async function buildBrowserSystemPrompt(phone: string | null): Promise<string> {
   const last = getLastResult();
   // Pull every dynamic block in parallel so we don't serialise their
   // 800 ms DB timeouts + Earth Engine cache fetch on call setup.
-  const [herderMemory, wardRollup, waterUsage, waterBodies] = await Promise.all([
-    formatHerderMemoryBlock(phone),
-    formatWardRollupBlock(),
-    formatWaterPointUsageBlock(),
-    formatSatelliteWaterBodiesBlock(),
-  ]);
+  const [herderMemory, wardRollup, waterUsage, waterBodies] = await Promise.all(
+    [
+      formatHerderMemoryBlock(phone),
+      formatWardRollupBlock(),
+      formatWaterPointUsageBlock(),
+      formatSatelliteWaterBodiesBlock(),
+    ],
+  );
   const memoryBlock = [herderMemory, wardRollup, waterUsage]
     .filter(Boolean)
     .join("\n\n");
@@ -103,11 +109,15 @@ CURRENT CLIMATE (30-day ERA5):
 
   const anomaly = last.live?.anomaly;
   const worstPlace = anomaly
-    ? QUAD_TO_PLACE[anomaly.worstQuadrant as keyof typeof QUAD_TO_PLACE] ?? anomaly.worstQuadrant
+    ? (QUAD_TO_PLACE[anomaly.worstQuadrant as keyof typeof QUAD_TO_PLACE] ??
+      anomaly.worstQuadrant)
     : "";
   const quadBreakdown = anomaly
     ? (["NW", "NE", "SW", "SE"] as const)
-        .map((q) => `  • ${QUAD_TO_PLACE[q]}: ${anomaly.quadrantMeanAnomalyPct[q]?.toFixed(1)}% vs baseline`)
+        .map(
+          (q) =>
+            `  • ${QUAD_TO_PLACE[q]}: ${anomaly.quadrantMeanAnomalyPct[q]?.toFixed(1)}% vs baseline`,
+        )
         .join("\n")
     : "";
 
@@ -253,8 +263,22 @@ export function handleBrowserVoiceStream(
   // turns despite being <4 chars. Without this, "la", "ndio", "poa",
   // "yes" wouldn't open the end_call gate and the model would loop.
   const SHORT_AFFIRM_WORDS = new Set([
-    "yes", "no", "ok", "okay", "yeah", "yep", "sure",
-    "la", "ndio", "ndiyo", "sawa", "poa", "haya", "eh", "ee", "eee",
+    "yes",
+    "no",
+    "ok",
+    "okay",
+    "yeah",
+    "yep",
+    "sure",
+    "la",
+    "ndio",
+    "ndiyo",
+    "sawa",
+    "poa",
+    "haya",
+    "eh",
+    "ee",
+    "eee",
   ]);
   const isSubstantiveTurn = (text: string): boolean => {
     if (text.length >= 4) return true;
@@ -298,7 +322,10 @@ export function handleBrowserVoiceStream(
   // per session.
   const hardCapTimer = setTimeout(() => {
     if (browserWs.readyState === WebSocket.OPEN) {
-      logger.warn({ phone, capMs: MAX_CALL_DURATION_MS }, "[Browser Voice] hard cap reached — closing");
+      logger.warn(
+        { phone, capMs: MAX_CALL_DURATION_MS },
+        "[Browser Voice] hard cap reached — closing",
+      );
       endReason = "max_duration_reached";
       try {
         send(browserWs, { type: "end_call", reason: "max_duration_reached" });
@@ -315,26 +342,39 @@ export function handleBrowserVoiceStream(
   // up on its next response turn (after the caller's next utterance, or
   // immediately if it's already mid-monologue). This is the fix for
   // "the call cut me without advice".
-  const softWrapTimer = setTimeout(() => {
-    if (callEnded) return;
-    if (!openaiWs || openaiWs.readyState !== WebSocket.OPEN) return;
-    try {
-      openaiWs.send(JSON.stringify({
-        type: "conversation.item.create",
-        item: {
-          type: "message",
-          role: "system",
-          content: [{
-            type: "input_text",
-            text: "TIME CHECK — About 60 seconds of call time remain. On your VERY NEXT turn: (1) deliver your single most important piece of practical, anchored advice based on what this caller has told you, 1–3 short sentences, in the language they're speaking; (2) say a warm bilingual goodbye (Asante sana, kwaheri / Goodbye); (3) invoke the end_call tool. Do NOT start a new topic, do NOT ask another question, do NOT collect more indicators.",
-          }],
-        },
-      }));
-      logger.info({ phone }, "[Browser Voice] soft wrap-up nudge sent at T-60s");
-    } catch (err) {
-      logger.warn({ err, phone }, "[Browser Voice] failed to send soft wrap-up nudge");
-    }
-  }, Math.max(30_000, MAX_CALL_DURATION_MS - 60_000));
+  const softWrapTimer = setTimeout(
+    () => {
+      if (callEnded) return;
+      if (!openaiWs || openaiWs.readyState !== WebSocket.OPEN) return;
+      try {
+        openaiWs.send(
+          JSON.stringify({
+            type: "conversation.item.create",
+            item: {
+              type: "message",
+              role: "system",
+              content: [
+                {
+                  type: "input_text",
+                  text: "TIME CHECK — About 60 seconds of call time remain. On your VERY NEXT turn: (1) deliver your single most important piece of practical, anchored advice based on what this caller has told you, 1–3 short sentences, in the language they're speaking; (2) say a warm bilingual goodbye (Asante sana, kwaheri / Goodbye); (3) invoke the end_call tool. Do NOT start a new topic, do NOT ask another question, do NOT collect more indicators.",
+                },
+              ],
+            },
+          }),
+        );
+        logger.info(
+          { phone },
+          "[Browser Voice] soft wrap-up nudge sent at T-60s",
+        );
+      } catch (err) {
+        logger.warn(
+          { err, phone },
+          "[Browser Voice] failed to send soft wrap-up nudge",
+        );
+      }
+    },
+    Math.max(30_000, MAX_CALL_DURATION_MS - 60_000),
+  );
 
   logger.info({ phone, isPublicSession }, "Browser voice stream opened");
 
@@ -410,7 +450,9 @@ export function handleBrowserVoiceStream(
       case "session.updated": {
         // Now safe to ask Azure for an opening greeting with audio modality
         // explicitly attached so it cannot default to text-only.
-        logger.info("Azure Realtime session.updated — requesting opening greeting");
+        logger.info(
+          "Azure Realtime session.updated — requesting opening greeting",
+        );
         send(openaiWs, {
           type: "response.create",
           response: { modalities: ["audio", "text"] },
@@ -418,7 +460,8 @@ export function handleBrowserVoiceStream(
         break;
       }
       case "response.created": {
-        const respId = (event["response"] as { id?: string } | undefined)?.id ?? null;
+        const respId =
+          (event["response"] as { id?: string } | undefined)?.id ?? null;
         activeAzureResponseId = respId;
         // A fresh response is starting — never gag it with leftover
         // suppression from a previous cancelled response.
@@ -431,7 +474,10 @@ export function handleBrowserVoiceStream(
         if (!userHasSpoken) {
           userHasSpoken = true;
           clearNoSpeechTimer();
-          logger.info({ phone }, "[Browser Voice] first caller speech detected");
+          logger.info(
+            { phone },
+            "[Browser Voice] first caller speech detected",
+          );
         }
         // Barge-in: if AI is mid-utterance, cancel the in-flight Azure
         // response and tell the browser to flush its queued AI audio so
@@ -443,11 +489,17 @@ export function handleBrowserVoiceStream(
           // suppressAudioUntilResponseDone stuck true (no response.done ever
           // arrives) and the AI goes permanently mute for the rest of the call.
           if (activeAzureResponseId) {
-            logger.info({ phone, responseId: activeAzureResponseId }, "[Browser Voice] barge-in — cancelling AI response");
+            logger.info(
+              { phone, responseId: activeAzureResponseId },
+              "[Browser Voice] barge-in — cancelling AI response",
+            );
             send(openaiWs, { type: "response.cancel" });
             suppressAudioUntilResponseDone = true;
           } else {
-            logger.info({ phone }, "[Browser Voice] barge-in during tail playback — flushing browser only");
+            logger.info(
+              { phone },
+              "[Browser Voice] barge-in during tail playback — flushing browser only",
+            );
           }
           send(browserWs, { type: "interrupt" });
           aiAudioInFlight = false;
@@ -490,7 +542,10 @@ export function handleBrowserVoiceStream(
           | { status?: string; status_details?: unknown }
           | undefined;
         if (resp?.status && resp.status !== "completed") {
-          logger.warn({ status: resp.status, details: resp.status_details }, "Azure Realtime response.done non-completed");
+          logger.warn(
+            { status: resp.status, details: resp.status_details },
+            "Azure Realtime response.done non-completed",
+          );
         }
         activeAzureResponseId = null;
         suppressAudioUntilResponseDone = false;
@@ -527,12 +582,15 @@ export function handleBrowserVoiceStream(
         const argsRaw = event["arguments"] as string | undefined;
         if (name !== "end_call") break;
         if (endCallScheduled) {
-          logger.info("[Browser Voice] end_call invoked again — ignoring (latch)");
+          logger.info(
+            "[Browser Voice] end_call invoked again — ignoring (latch)",
+          );
           break;
         }
         const elapsedMs = Date.now() - sessionStartMs;
         const gateOpen =
-          elapsedMs >= MIN_CALL_DURATION_MS && callerTurnCount >= MIN_CALLER_TURNS;
+          elapsedMs >= MIN_CALL_DURATION_MS &&
+          callerTurnCount >= MIN_CALLER_TURNS;
         if (!gateOpen) {
           // Premature hangup — reject the tool call and tell the model
           // exactly what's missing so it loops back to deliver real advice.
@@ -575,13 +633,20 @@ export function handleBrowserVoiceStream(
         endReason = "ai_ended";
         let reason = "unspecified";
         try {
-          const parsed = argsRaw ? (JSON.parse(argsRaw) as { reason?: string }) : {};
+          const parsed = argsRaw
+            ? (JSON.parse(argsRaw) as { reason?: string })
+            : {};
           if (parsed.reason) reason = parsed.reason;
         } catch {
           // ignore
         }
         logger.info(
-          { reason, elapsedMs, callerTurnCount, rejectedOnce: endCallRejectedOnce },
+          {
+            reason,
+            elapsedMs,
+            callerTurnCount,
+            rejectedOnce: endCallRejectedOnce,
+          },
           "[Browser Voice] AI invoked end_call",
         );
         if (callId) {
@@ -602,7 +667,9 @@ export function handleBrowserVoiceStream(
         // is ~6s of audio + 2–3s of browser-buffered tail = ~10s total.
         endCallFallbackTimer = setTimeout(() => {
           if (browserWs.readyState === WebSocket.OPEN) {
-            logger.info("[Browser Voice] closing after end_call fallback timeout");
+            logger.info(
+              "[Browser Voice] closing after end_call fallback timeout",
+            );
             browserWs.close();
           }
         }, 15_000);
@@ -612,15 +679,24 @@ export function handleBrowserVoiceStream(
         const text = event["transcript"] as string | undefined;
         if (text?.trim()) {
           transcript.push({ role: "assistant", text: text.trim() });
-          send(browserWs, { type: "transcript", role: "assistant", text: text.trim() });
+          send(browserWs, {
+            type: "transcript",
+            role: "assistant",
+            text: text.trim(),
+          });
         }
         break;
       }
       case "error": {
         const errVal = event["error"];
         const errObj =
-          errVal && typeof errVal === "object" ? (errVal as Record<string, unknown>) : null;
-        const errCode = errObj && typeof errObj["code"] === "string" ? (errObj["code"] as string) : "";
+          errVal && typeof errVal === "object"
+            ? (errVal as Record<string, unknown>)
+            : null;
+        const errCode =
+          errObj && typeof errObj["code"] === "string"
+            ? (errObj["code"] as string)
+            : "";
         const errMsgRaw =
           typeof errVal === "string"
             ? errVal
@@ -636,7 +712,10 @@ export function handleBrowserVoiceStream(
           errCode === "response_cancel_not_active" ||
           /cancellation failed.*no active response/i.test(errMsgRaw);
         if (isBenignCancel) {
-          logger.info({ phone, code: errCode }, "[Browser Voice] benign cancel race — ignoring");
+          logger.info(
+            { phone, code: errCode },
+            "[Browser Voice] benign cancel race — ignoring",
+          );
           break;
         }
         logger.error({ event }, "Azure Realtime error (browser)");
@@ -689,7 +768,9 @@ export function handleBrowserVoiceStream(
         }
         setTimeout(() => {
           if (browserWs.readyState === WebSocket.OPEN) {
-            logger.info("[Browser Voice] closing after browser playback_ended (graceful)");
+            logger.info(
+              "[Browser Voice] closing after browser playback_ended (graceful)",
+            );
             browserWs.close();
           }
         }, 600);
@@ -753,12 +834,16 @@ async function endBrowserCall(
   }
   try {
     const last = getLastResult();
-    const userText = transcript.filter((t) => t.role === "user").map((t) => t.text).join(" ");
+    const userText = transcript
+      .filter((t) => t.role === "user")
+      .map((t) => t.text)
+      .join(" ");
     const fullTranscript = transcript
       .map((t) => `${t.role === "user" ? "User" : "ArdaLink"}: ${t.text}`)
       .join("\n");
     const month =
-      last?.month_name ?? new Date().toLocaleString("en", { month: "short" }).toUpperCase();
+      last?.month_name ??
+      new Date().toLocaleString("en", { month: "short" }).toUpperCase();
 
     // Action tag + indicator extraction run in parallel — both depend only on transcript
     const [actionTag, indicators] = await Promise.all([
@@ -779,7 +864,8 @@ async function endBrowserCall(
     const rainfall = cl30?.totalPrecipMm ?? null;
     const et0 = cl30?.totalET0Mm ?? null;
     const soilMoisture = cl30?.meanSoilMoisture ?? null;
-    const ratio = rainfall != null && et0 != null && et0 > 0 ? rainfall / et0 : null;
+    const ratio =
+      rainfall != null && et0 != null && et0 > 0 ? rainfall / et0 : null;
 
     const ind = indicators;
     const completenessPct = ind ? (ind.indicators_collected / 7) * 100 : null;
@@ -854,4 +940,3 @@ async function endBrowserCall(
     logger.error({ err }, "Failed to save browser ground truth");
   }
 }
-

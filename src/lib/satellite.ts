@@ -14,11 +14,11 @@ const PIX_LAT = (WARD_BBOX[3] - WARD_BBOX[1]) / GRID_ROWS; // ~0.000287° per pi
 const CENTER_COL = Math.floor(GRID_COLS / 2); // col index of ward centre
 const CENTER_ROW = Math.floor(GRID_ROWS / 2); // row index of ward centre
 
-const VEG_THRESHOLD = 0.08;    // historical NDVI < 0.08 → bare soil / water, skip
-const COSMOS_NODATA = -9999;   // sentinel used in Cosmos DB pixel_grids
-const LIVE_NODATA   = -1;      // masked EE pixels are unmasked to -1 (floor of normalizedDifference)
+const VEG_THRESHOLD = 0.08; // historical NDVI < 0.08 → bare soil / water, skip
+const COSMOS_NODATA = -9999; // sentinel used in Cosmos DB pixel_grids
+const LIVE_NODATA = -1; // masked EE pixels are unmasked to -1 (floor of normalizedDifference)
 const LIVE_NODATA_THRESH = -0.9; // live values ≤ this are treated as no-data
-const STRESS_THRESHOLD = -15;  // anomaly % below which a pixel is "stressed"
+const STRESS_THRESHOLD = -15; // anomaly % below which a pixel is "stressed"
 
 // ── Public types ─────────────────────────────────────────────────────────────
 
@@ -102,7 +102,10 @@ function evaluate<T>(eeObj: any): Promise<T> {
 // ── Step A: Cosmos DB — load pre-computed historical pixel grid ───────────────
 // Each chunk covers 100 rows × 499 cols. We reassemble in chunk order.
 
-async function loadCosmosGrid(month: number, band: string): Promise<number[][]> {
+async function loadCosmosGrid(
+  month: number,
+  band: string,
+): Promise<number[][]> {
   const { resources: chunks } = await ardalinkDb
     .container("pixel_grids")
     .items.query({
@@ -148,7 +151,10 @@ async function buildCurrentComposite(
   let count: number = await evaluate(col.size());
 
   if (count < 3) {
-    logger.warn({ count }, "[Satellite] Few images — extending window to 60 days");
+    logger.warn(
+      { count },
+      "[Satellite] Few images — extending window to 60 days",
+    );
     const start60 = new Date(end);
     start60.setDate(start60.getDate() - 60);
     col = ee
@@ -168,15 +174,19 @@ async function buildCurrentComposite(
         .limit(10)
         .aggregate_array("system:time_start"),
     );
-    imageDates = ms.map((t) => new Date(t).toISOString().split("T")[0]!).filter(Boolean);
-  } catch { /* non-critical */ }
+    imageDates = ms
+      .map((t) => new Date(t).toISOString().split("T")[0]!)
+      .filter(Boolean);
+  } catch {
+    /* non-critical */
+  }
 
   // Per-image band indices + timestamp for most-recent-pixel mosaic
   const withBands = col.map((img: any) => {
     const ndvi = img.normalizedDifference(["B8", "B4"]).rename("NDVI");
     const ndre = img.normalizedDifference(["B8A", "B5"]).rename("NDRE");
-    const re   = img.normalizedDifference(["B7",  "B5"]).rename("RED_EDGE");
-    const ts   = img.metadata("system:time_start").toFloat().rename("ts");
+    const re = img.normalizedDifference(["B7", "B5"]).rename("RED_EDGE");
+    const ts = img.metadata("system:time_start").toFloat().rename("ts");
     return ndvi.addBands(ndre).addBands(re).addBands(ts);
   });
 
@@ -223,9 +233,9 @@ async function sampleCurrentGrid(
 
   const p = sample.properties;
   return {
-    NDVI:      p["NDVI"]      ?? [],
-    NDRE:      p["NDRE"]      ?? [],
-    RED_EDGE:  p["RED_EDGE"]  ?? [],
+    NDVI: p["NDVI"] ?? [],
+    NDRE: p["NDRE"] ?? [],
+    RED_EDGE: p["RED_EDGE"] ?? [],
     imageCount,
     imageDates,
   };
@@ -234,21 +244,34 @@ async function sampleCurrentGrid(
 // ── Step C: In-server anomaly computation ────────────────────────────────────
 // All maths happens in Node.js — no further EE calls needed.
 
-interface AnomalyPoint { r: number; c: number; pct: number }
+interface AnomalyPoint {
+  r: number;
+  c: number;
+  pct: number;
+}
 
 function computeAnomalyPoints(
   current: number[][],
   historical: number[][],
 ): AnomalyPoint[] {
   const rows = Math.min(current.length, historical.length, GRID_ROWS);
-  const cols = Math.min(current[0]?.length ?? 0, historical[0]?.length ?? 0, GRID_COLS);
+  const cols = Math.min(
+    current[0]?.length ?? 0,
+    historical[0]?.length ?? 0,
+    GRID_COLS,
+  );
   const points: AnomalyPoint[] = [];
 
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
-      const cur  = current[r]![c]!;
+      const cur = current[r]![c]!;
       const base = historical[r]![c]!;
-      if (cur <= LIVE_NODATA_THRESH || base === COSMOS_NODATA || base < VEG_THRESHOLD) continue;
+      if (
+        cur <= LIVE_NODATA_THRESH ||
+        base === COSMOS_NODATA ||
+        base < VEG_THRESHOLD
+      )
+        continue;
       const pct = ((cur - base) / Math.abs(base)) * 100;
       points.push({ r, c, pct });
     }
@@ -264,16 +287,14 @@ function computeStats(values: number[]): AnomalyStats {
   const mean = values.reduce((a, b) => a + b, 0) / n;
   return {
     meanPct: parseFloat(mean.toFixed(2)),
-    p5:  parseFloat(at(0.05).toFixed(2)),
+    p5: parseFloat(at(0.05).toFixed(2)),
     p25: parseFloat(at(0.25).toFixed(2)),
-    p50: parseFloat(at(0.50).toFixed(2)),
+    p50: parseFloat(at(0.5).toFixed(2)),
     p75: parseFloat(at(0.75).toFixed(2)),
   };
 }
 
-function computeQuadrantStats(
-  points: AnomalyPoint[],
-): {
+function computeQuadrantStats(points: AnomalyPoint[]): {
   worstQuadrant: "NW" | "NE" | "SW" | "SE" | "uniform";
   quadrantMeanAnomalyPct: Record<string, number>;
 } {
@@ -311,7 +332,8 @@ function computeStressMetrics(points: AnomalyPoint[]): {
   const stressed = points.filter((p) => p.pct < STRESS_THRESHOLD).length;
   const total = points.length;
   return {
-    wardStressedPixelPct: total > 0 ? parseFloat(((stressed / total) * 100).toFixed(2)) : 0,
+    wardStressedPixelPct:
+      total > 0 ? parseFloat(((stressed / total) * 100).toFixed(2)) : 0,
     wardVegetatedPixels: total,
     wardStressedPixels: stressed,
   };
@@ -336,10 +358,15 @@ function computeLocalZone(
 
   // Bounds check
   if (
-    centerCol < 0 || centerCol >= GRID_COLS ||
-    centerRow < 0 || centerRow >= GRID_ROWS
+    centerCol < 0 ||
+    centerCol >= GRID_COLS ||
+    centerRow < 0 ||
+    centerRow >= GRID_ROWS
   ) {
-    logger.warn({ lat, lon, centerRow, centerCol }, "[Satellite] Local zone centre is outside the ward grid");
+    logger.warn(
+      { lat, lon, centerRow, centerCol },
+      "[Satellite] Local zone centre is outside the ward grid",
+    );
     return undefined;
   }
 
@@ -347,18 +374,35 @@ function computeLocalZone(
   let stressed = 0;
 
   const rows = Math.min(currentNDVI.length, historicalNDVI.length, GRID_ROWS);
-  const cols = Math.min(currentNDVI[0]?.length ?? 0, historicalNDVI[0]?.length ?? 0, GRID_COLS);
+  const cols = Math.min(
+    currentNDVI[0]?.length ?? 0,
+    historicalNDVI[0]?.length ?? 0,
+    GRID_COLS,
+  );
 
-  for (let r = Math.max(0, centerRow - radiusCols); r < Math.min(rows, centerRow + radiusCols); r++) {
-    for (let c = Math.max(0, centerCol - radiusCols); c < Math.min(cols, centerCol + radiusCols); c++) {
+  for (
+    let r = Math.max(0, centerRow - radiusCols);
+    r < Math.min(rows, centerRow + radiusCols);
+    r++
+  ) {
+    for (
+      let c = Math.max(0, centerCol - radiusCols);
+      c < Math.min(cols, centerCol + radiusCols);
+      c++
+    ) {
       // Circle check using approximate metres
       const dLon = (c - centerCol) * PIX_LON * 111320;
       const dLat = (r - centerRow) * PIX_LAT * 110570;
       if (Math.sqrt(dLon * dLon + dLat * dLat) > radiusKm * 1000) continue;
 
-      const cur  = currentNDVI[r]![c]!;
+      const cur = currentNDVI[r]![c]!;
       const base = historicalNDVI[r]![c]!;
-      if (cur <= LIVE_NODATA_THRESH || base === COSMOS_NODATA || base < VEG_THRESHOLD) continue;
+      if (
+        cur <= LIVE_NODATA_THRESH ||
+        base === COSMOS_NODATA ||
+        base < VEG_THRESHOLD
+      )
+        continue;
 
       const pct = ((cur - base) / Math.abs(base)) * 100;
       localPoints.push(pct);
@@ -373,7 +417,14 @@ function computeLocalZone(
       : 0;
 
   logger.info(
-    { lat, lon, radiusKm, pixelCount: localPoints.length, stressedPixelPct, meanAnomalyPct: stats.meanPct },
+    {
+      lat,
+      lon,
+      radiusKm,
+      pixelCount: localPoints.length,
+      stressedPixelPct,
+      meanAnomalyPct: stats.meanPct,
+    },
     "[Satellite] Local zone anomaly computed",
   );
 
@@ -395,7 +446,10 @@ export async function fetchLiveVegetation(): Promise<LiveVegetation> {
   const ward = ee.Geometry.Rectangle([...WARD_BBOX]);
   const month = new Date().getMonth() + 1;
 
-  logger.info({ month }, "[Satellite] Starting live fetch + Cosmos DB pixel comparison");
+  logger.info(
+    { month },
+    "[Satellite] Starting live fetch + Cosmos DB pixel comparison",
+  );
 
   // ── A: Load Cosmos DB historical baselines (3 bands, all in parallel) ──────
   logger.info("[Satellite] Loading Cosmos DB pixel_grids historical baselines");
@@ -406,43 +460,63 @@ export async function fetchLiveVegetation(): Promise<LiveVegetation> {
   ]);
 
   // ── B: EE live composite → pixel array (sampleRectangle) ─────────────────
-  logger.info("[Satellite] Fetching live EE composite and extracting pixel array");
-  const { NDVI: liveNDVI, NDRE: liveNDRE, RED_EDGE: liveRE, imageCount, imageDates } =
-    await sampleCurrentGrid(ee, ward);
+  logger.info(
+    "[Satellite] Fetching live EE composite and extracting pixel array",
+  );
+  const {
+    NDVI: liveNDVI,
+    NDRE: liveNDRE,
+    RED_EDGE: liveRE,
+    imageCount,
+    imageDates,
+  } = await sampleCurrentGrid(ee, ward);
 
   const liveRows = liveNDVI.length;
   const liveCols = liveNDVI[0]?.length ?? 0;
-  logger.info({ liveRows, liveCols, imageCount, imageDates }, "[Satellite] Live pixel array received");
+  logger.info(
+    { liveRows, liveCols, imageCount, imageDates },
+    "[Satellite] Live pixel array received",
+  );
 
   // ── C: Per-pixel anomaly computation (pure Node.js) ──────────────────────
   logger.info("[Satellite] Computing per-pixel anomalies in-server");
 
   const ndviPoints = computeAnomalyPoints(liveNDVI, histNDVI);
   const ndrePoints = computeAnomalyPoints(liveNDRE, histNDRE);
-  const rePoints   = computeAnomalyPoints(liveRE,   histRE);
+  const rePoints = computeAnomalyPoints(liveRE, histRE);
 
   const ndviStats = computeStats(ndviPoints.map((p) => p.pct));
   const ndreStats = computeStats(ndrePoints.map((p) => p.pct));
-  const reStats   = computeStats(rePoints.map((p) => p.pct));
+  const reStats = computeStats(rePoints.map((p) => p.pct));
 
   const { wardStressedPixelPct, wardVegetatedPixels, wardStressedPixels } =
     computeStressMetrics(ndviPoints);
 
-  const { worstQuadrant, quadrantMeanAnomalyPct } = computeQuadrantStats(ndviPoints);
+  const { worstQuadrant, quadrantMeanAnomalyPct } =
+    computeQuadrantStats(ndviPoints);
 
   // ── D: Local zone (extracted from already-loaded grids — zero extra I/O) ──
   const localZone = computeLocalZone(liveNDVI, histNDVI);
 
   // ── E: Ward-level mean values (for legacy delta comparison) ───────────────
-  const validNDVI = ndviPoints.map((p) => {
-    const r = p.r; const c = p.c;
-    return liveNDVI[r]?.[c] ?? LIVE_NODATA;
-  }).filter((v) => v > LIVE_NODATA_THRESH);
-  const validNDRE = ndrePoints.map((p) => liveNDRE[p.r]?.[p.c] ?? LIVE_NODATA).filter((v) => v > LIVE_NODATA_THRESH);
-  const validRE   = rePoints.map((p) => liveRE[p.r]?.[p.c] ?? LIVE_NODATA).filter((v) => v > LIVE_NODATA_THRESH);
+  const validNDVI = ndviPoints
+    .map((p) => {
+      const r = p.r;
+      const c = p.c;
+      return liveNDVI[r]?.[c] ?? LIVE_NODATA;
+    })
+    .filter((v) => v > LIVE_NODATA_THRESH);
+  const validNDRE = ndrePoints
+    .map((p) => liveNDRE[p.r]?.[p.c] ?? LIVE_NODATA)
+    .filter((v) => v > LIVE_NODATA_THRESH);
+  const validRE = rePoints
+    .map((p) => liveRE[p.r]?.[p.c] ?? LIVE_NODATA)
+    .filter((v) => v > LIVE_NODATA_THRESH);
 
   const mean = (arr: number[]) =>
-    arr.length ? parseFloat((arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(6)) : 0;
+    arr.length
+      ? parseFloat((arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(6))
+      : 0;
 
   const now = new Date();
   const endStr = now.toISOString().split("T")[0]!;
@@ -479,9 +553,9 @@ export async function fetchLiveVegetation(): Promise<LiveVegetation> {
   );
 
   return {
-    NDVI:      mean(validNDVI),
-    NDRE:      mean(validNDRE),
-    RED_EDGE:  mean(validRE),
+    NDVI: mean(validNDVI),
+    NDRE: mean(validNDRE),
+    RED_EDGE: mean(validRE),
     dateRange: { start: startStr, end: endStr },
     imageCount,
     imageDates,

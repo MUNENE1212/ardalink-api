@@ -135,7 +135,9 @@ export class BudgetExceededError extends Error {
 
 export class PublicTalkDisabledError extends Error {
   constructor() {
-    super("ArdaLink public calls are temporarily disabled. Please try again later.");
+    super(
+      "ArdaLink public calls are temporarily disabled. Please try again later.",
+    );
     this.name = "PublicTalkDisabledError";
   }
 }
@@ -224,7 +226,8 @@ export function reservePublicCallBudget(
     }
   }
 
-  const projected = bucket.usedMinutes + bucket.reservedMinutes + MAX_MINUTES_PER_CALL;
+  const projected =
+    bucket.usedMinutes + bucket.reservedMinutes + MAX_MINUTES_PER_CALL;
   if (projected > DAILY_BUDGET_MINUTES) {
     throw new BudgetExceededError(nextUtcMidnight());
   }
@@ -245,7 +248,10 @@ export function reservePublicCallBudget(
       if (alreadyClosed) return;
       alreadyClosed = true;
       rolloverIfNeeded();
-      bucket.reservedMinutes = Math.max(0, bucket.reservedMinutes - MAX_MINUTES_PER_CALL);
+      bucket.reservedMinutes = Math.max(
+        0,
+        bucket.reservedMinutes - MAX_MINUTES_PER_CALL,
+      );
       // Per-phone count stays — this call happened, it should burn the
       // caller's allowance.
       if (!Number.isFinite(actualMinutes) || actualMinutes <= 0) {
@@ -263,7 +269,9 @@ export function reservePublicCallBudget(
           reservedMinutesToday: bucket.reservedMinutes,
           budgetMinutes: DAILY_BUDGET_MINUTES,
           callsToday: bucket.callCount,
-          callsForPhoneToday: heldPhone ? bucket.callsByPhone.get(heldPhone) ?? 0 : null,
+          callsForPhoneToday: heldPhone
+            ? (bucket.callsByPhone.get(heldPhone) ?? 0)
+            : null,
         },
         "[PublicTalkLimits] Settled call minutes",
       );
@@ -272,7 +280,10 @@ export function reservePublicCallBudget(
       if (alreadyClosed) return;
       alreadyClosed = true;
       rolloverIfNeeded();
-      bucket.reservedMinutes = Math.max(0, bucket.reservedMinutes - MAX_MINUTES_PER_CALL);
+      bucket.reservedMinutes = Math.max(
+        0,
+        bucket.reservedMinutes - MAX_MINUTES_PER_CALL,
+      );
       // Token expired unused → give the caller's daily allowance back
       // (so a flaky network doesn't lock them out for the rest of the day).
       if (heldPhone) {

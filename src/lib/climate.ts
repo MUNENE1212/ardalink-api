@@ -2,12 +2,8 @@ import { logger } from "./logger.js";
 
 // Ward centre — used as the representative point for climate queries.
 // Override with WARD_CLIMATE_LAT / WARD_CLIMATE_LON env vars if needed.
-const CLIMATE_LAT = parseFloat(
-  process.env.WARD_CLIMATE_LAT ?? "0.355",
-);
-const CLIMATE_LON = parseFloat(
-  process.env.WARD_CLIMATE_LON ?? "37.583",
-);
+const CLIMATE_LAT = parseFloat(process.env.WARD_CLIMATE_LAT ?? "0.355");
+const CLIMATE_LON = parseFloat(process.env.WARD_CLIMATE_LON ?? "37.583");
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -16,12 +12,17 @@ export interface DailyClimate {
   maxTempC: number;
   minTempC: number;
   meanTempC: number;
-  precipMm: number;         // mm of rainfall
-  et0Mm: number;            // reference evapotranspiration (mm/day)
+  precipMm: number; // mm of rainfall
+  et0Mm: number; // reference evapotranspiration (mm/day)
   soilMoisture0_1cm: number; // volumetric water content m³/m³, 0–1 cm layer
 }
 
-export type DroughtSeverity = "none" | "mild" | "moderate" | "severe" | "extreme";
+export type DroughtSeverity =
+  | "none"
+  | "mild"
+  | "moderate"
+  | "severe"
+  | "extreme";
 
 export interface ClimateSnapshot {
   fetchedAt: string;
@@ -35,12 +36,12 @@ export interface ClimateSnapshot {
   /** Rolling 30-day aggregate statistics */
   rolling30Day: {
     totalPrecipMm: number;
-    rainyDays: number;         // days with precip > 0.5 mm
+    rainyDays: number; // days with precip > 0.5 mm
     meanTempC: number;
     maxTempC: number;
-    meanET0Mm: number;         // mean daily reference ET₀
-    totalET0Mm: number;        // cumulative 30-day ET₀
-    meanSoilMoisture: number;  // mean volumetric water content 0–1 cm (m³/m³)
+    meanET0Mm: number; // mean daily reference ET₀
+    totalET0Mm: number; // cumulative 30-day ET₀
+    meanSoilMoisture: number; // mean volumetric water content 0–1 cm (m³/m³)
     /**
      * Moisture Adequacy Index (MAI) = totalPrecipMm / totalET0Mm.
      * > 1.0 surplus · 0.5–1.0 adequate · 0.3–0.5 mild deficit
@@ -106,7 +107,10 @@ export async function fetchClimateSnapshot(): Promise<ClimateSnapshot> {
   );
   url.searchParams.set("timezone", "Africa/Nairobi");
 
-  logger.info({ lat: CLIMATE_LAT, lon: CLIMATE_LON }, "[Climate] Fetching Open-Meteo 30-day snapshot");
+  logger.info(
+    { lat: CLIMATE_LAT, lon: CLIMATE_LON },
+    "[Climate] Fetching Open-Meteo 30-day snapshot",
+  );
 
   const res = await fetch(url.toString(), {
     headers: { "User-Agent": "ArdaLink-AI/1.0" },
@@ -123,30 +127,33 @@ export async function fetchClimateSnapshot(): Promise<ClimateSnapshot> {
   // ── Parse current conditions ──────────────────────────────────────────────
   const cur = (body["current"] ?? {}) as Record<string, unknown>;
   const current = {
-    temperatureC:     safeNum(cur["temperature_2m"]),
-    humidityPct:      safeNum(cur["relative_humidity_2m"]),
-    precipitationMm:  safeNum(cur["precipitation"]),
+    temperatureC: safeNum(cur["temperature_2m"]),
+    humidityPct: safeNum(cur["relative_humidity_2m"]),
+    precipitationMm: safeNum(cur["precipitation"]),
   };
 
   // ── Parse daily arrays ────────────────────────────────────────────────────
-  const daily      = (body["daily"] ?? {}) as Record<string, unknown>;
-  const dates      = (daily["time"]                        as string[]  | undefined) ?? [];
-  const maxTemps   = (daily["temperature_2m_max"]          as number[]  | undefined) ?? [];
-  const minTemps   = (daily["temperature_2m_min"]          as number[]  | undefined) ?? [];
-  const meanTemps  = (daily["temperature_2m_mean"]         as number[]  | undefined) ?? [];
-  const precipDays = (daily["precipitation_sum"]           as number[]  | undefined) ?? [];
-  const et0Days    = (daily["et0_fao_evapotranspiration"]  as number[]  | undefined) ?? [];
+  const daily = (body["daily"] ?? {}) as Record<string, unknown>;
+  const dates = (daily["time"] as string[] | undefined) ?? [];
+  const maxTemps = (daily["temperature_2m_max"] as number[] | undefined) ?? [];
+  const minTemps = (daily["temperature_2m_min"] as number[] | undefined) ?? [];
+  const meanTemps =
+    (daily["temperature_2m_mean"] as number[] | undefined) ?? [];
+  const precipDays = (daily["precipitation_sum"] as number[] | undefined) ?? [];
+  const et0Days =
+    (daily["et0_fao_evapotranspiration"] as number[] | undefined) ?? [];
 
   // ── Average hourly soil moisture to daily ─────────────────────────────────
-  const hourly     = (body["hourly"] ?? {}) as Record<string, unknown>;
-  const hourlyTimes = (hourly["time"]                    as string[]  | undefined) ?? [];
-  const hourlySM   = (hourly["soil_moisture_0_to_1cm"]  as (number|null)[] | undefined) ?? [];
+  const hourly = (body["hourly"] ?? {}) as Record<string, unknown>;
+  const hourlyTimes = (hourly["time"] as string[] | undefined) ?? [];
+  const hourlySM =
+    (hourly["soil_moisture_0_to_1cm"] as (number | null)[] | undefined) ?? [];
 
   // Group 24 hourly values per date → daily mean
   const smByDate: Record<string, number[]> = {};
   for (let h = 0; h < hourlyTimes.length; h++) {
     const date = (hourlyTimes[h] ?? "").slice(0, 10);
-    const val  = hourlySM[h];
+    const val = hourlySM[h];
     if (date && val != null && isFinite(val)) {
       (smByDate[date] ??= []).push(val);
     }
@@ -158,30 +165,38 @@ export async function fetchClimateSnapshot(): Promise<ClimateSnapshot> {
 
   for (let i = 0; i < dates.length; i++) {
     const date = dates[i] ?? "";
-    if (!date || date > today) continue;           // skip future dates
-    if (dailyRecords.length >= 30) break;          // cap at 30 days
+    if (!date || date > today) continue; // skip future dates
+    if (dailyRecords.length >= 30) break; // cap at 30 days
 
     const sm = smByDate[date] ? mean(smByDate[date]!) : 0;
 
     dailyRecords.push({
       date,
-      maxTempC:            safeNum(maxTemps[i]),
-      minTempC:            safeNum(minTemps[i]),
-      meanTempC:           safeNum(meanTemps[i]),
-      precipMm:            safeNum(precipDays[i]),
-      et0Mm:               safeNum(et0Days[i]),
-      soilMoisture0_1cm:   parseFloat(sm.toFixed(4)),
+      maxTempC: safeNum(maxTemps[i]),
+      minTempC: safeNum(minTemps[i]),
+      meanTempC: safeNum(meanTemps[i]),
+      precipMm: safeNum(precipDays[i]),
+      et0Mm: safeNum(et0Days[i]),
+      soilMoisture0_1cm: parseFloat(sm.toFixed(4)),
     });
   }
 
   // ── Aggregate 30-day stats ────────────────────────────────────────────────
   const totalPrecip = dailyRecords.reduce((s, d) => s + d.precipMm, 0);
-  const totalET0    = dailyRecords.reduce((s, d) => s + d.et0Mm, 0);
-  const rainyDays   = dailyRecords.filter((d) => d.precipMm > 0.5).length;
-  const meanTemp    = parseFloat(mean(dailyRecords.map((d) => d.meanTempC)).toFixed(1));
-  const maxTemp     = parseFloat(Math.max(...dailyRecords.map((d) => d.maxTempC)).toFixed(1));
-  const meanET0     = parseFloat((totalET0 / (dailyRecords.length || 1)).toFixed(2));
-  const meanSM      = parseFloat(mean(dailyRecords.map((d) => d.soilMoisture0_1cm)).toFixed(4));
+  const totalET0 = dailyRecords.reduce((s, d) => s + d.et0Mm, 0);
+  const rainyDays = dailyRecords.filter((d) => d.precipMm > 0.5).length;
+  const meanTemp = parseFloat(
+    mean(dailyRecords.map((d) => d.meanTempC)).toFixed(1),
+  );
+  const maxTemp = parseFloat(
+    Math.max(...dailyRecords.map((d) => d.maxTempC)).toFixed(1),
+  );
+  const meanET0 = parseFloat(
+    (totalET0 / (dailyRecords.length || 1)).toFixed(2),
+  );
+  const meanSM = parseFloat(
+    mean(dailyRecords.map((d) => d.soilMoisture0_1cm)).toFixed(4),
+  );
 
   // Moisture Adequacy Index: how much of water demand was met by rain
   const mai = totalET0 > 0 ? totalPrecip / totalET0 : 0;
@@ -192,16 +207,16 @@ export async function fetchClimateSnapshot(): Promise<ClimateSnapshot> {
     wardCentre: { lat: CLIMATE_LAT, lon: CLIMATE_LON },
     current,
     rolling30Day: {
-      totalPrecipMm:          parseFloat(totalPrecip.toFixed(1)),
+      totalPrecipMm: parseFloat(totalPrecip.toFixed(1)),
       rainyDays,
-      meanTempC:              meanTemp,
-      maxTempC:               isFinite(maxTemp) ? maxTemp : 0,
-      meanET0Mm:              meanET0,
-      totalET0Mm:             parseFloat(totalET0.toFixed(1)),
-      meanSoilMoisture:       meanSM,
-      moistureAdequacyIndex:  roundedMAI,
-      droughtSeverity:        classifyDrought(roundedMAI),
-      daily:                  dailyRecords,
+      meanTempC: meanTemp,
+      maxTempC: isFinite(maxTemp) ? maxTemp : 0,
+      meanET0Mm: meanET0,
+      totalET0Mm: parseFloat(totalET0.toFixed(1)),
+      meanSoilMoisture: meanSM,
+      moistureAdequacyIndex: roundedMAI,
+      droughtSeverity: classifyDrought(roundedMAI),
+      daily: dailyRecords,
     },
   };
 
@@ -225,15 +240,16 @@ export async function fetchClimateSnapshot(): Promise<ClimateSnapshot> {
 
 export function droughtLabel(severity: DroughtSeverity): string {
   return {
-    none:     "adequate water",
-    mild:     "mild moisture deficit",
+    none: "adequate water",
+    mild: "mild moisture deficit",
     moderate: "moderate drought stress",
-    severe:   "severe drought",
-    extreme:  "extreme drought",
+    severe: "severe drought",
+    extreme: "extreme drought",
   }[severity];
 }
 
 export function maiLabel(mai: number): string {
-  if (mai >= 0.8) return `${Math.round(mai * 100)}% of water demand was met by rain`;
+  if (mai >= 0.8)
+    return `${Math.round(mai * 100)}% of water demand was met by rain`;
   return `rainfall covered only ${Math.round(mai * 100)}% of crop/pasture water demand`;
 }

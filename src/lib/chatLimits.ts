@@ -56,14 +56,20 @@ function nextUtcMidnight(): number {
     now.getUTCFullYear(),
     now.getUTCMonth(),
     now.getUTCDate() + 1,
-    0, 0, 0, 0,
+    0,
+    0,
+    0,
+    0,
   );
 }
 
 function rolloverIfNeeded(): void {
   const today = utcDay();
   if (bucket.day !== today) {
-    logger.info({ previousDay: bucket.day }, "[ChatLimits] Daily bucket rollover");
+    logger.info(
+      { previousDay: bucket.day },
+      "[ChatLimits] Daily bucket rollover",
+    );
     bucket = {
       day: today,
       msgsByIp: new Map(),
@@ -88,7 +94,11 @@ export function checkAndRecordTalkChat(
     return { ok: false, reason: "message_empty" };
   }
   if (trimmed.length > MAX_MESSAGE_LENGTH) {
-    return { ok: false, reason: "message_too_long", maxLength: MAX_MESSAGE_LENGTH };
+    return {
+      ok: false,
+      reason: "message_too_long",
+      maxLength: MAX_MESSAGE_LENGTH,
+    };
   }
 
   rolloverIfNeeded();

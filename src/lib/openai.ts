@@ -2,9 +2,9 @@ import { logger } from "./logger.js";
 import type { VegetationDelta } from "./baseline.js";
 
 export interface PixelContext {
-  wardStressedPixelPct: number;  // % pixels >15% below own history
-  medianAnomalyPct: number;       // p50 NDVI anomaly
-  p5AnomalyPct: number;           // worst 5% of pixels
+  wardStressedPixelPct: number; // % pixels >15% below own history
+  medianAnomalyPct: number; // p50 NDVI anomaly
+  p5AnomalyPct: number; // worst 5% of pixels
   worstQuadrant: string;
   historicalImageCount: number;
   /** Real-time climate snapshot — if available, woven into the script */
@@ -13,7 +13,7 @@ export interface PixelContext {
     humidityPct: number;
     totalPrecip30dMm: number;
     rainyDays: number;
-    meanSoilMoisture: number;     // volumetric m³/m³
+    meanSoilMoisture: number; // volumetric m³/m³
     moistureAdequacyIndex: number;
     droughtSeverity: string;
     totalET0Mm: number;
@@ -100,7 +100,10 @@ async function azureChatPost(
   });
   if (!res.ok) {
     const text = await res.text();
-    logger.warn({ deployment: CHAT_DEPLOYMENT, status: res.status, text }, "Chat completions call failed — falling back to template");
+    logger.warn(
+      { deployment: CHAT_DEPLOYMENT, status: res.status, text },
+      "Chat completions call failed — falling back to template",
+    );
     return null;
   }
   return res.json() as Promise<Record<string, unknown>>;
@@ -120,26 +123,33 @@ function buildTemplateScript(
 ): GeneratedScript {
   const ndviPct = delta.NDVI.delta_pct;
   const stressedPct = px?.wardStressedPixelPct ?? 0;
-  const medianPct   = px?.medianAnomalyPct ?? ndviPct;
-  const p5Pct       = px?.p5AnomalyPct ?? ndviPct;
-  const quadrant    = px?.worstQuadrant;
-  const cl          = px?.climate;
+  const medianPct = px?.medianAnomalyPct ?? ndviPct;
+  const p5Pct = px?.p5AnomalyPct ?? ndviPct;
+  const quadrant = px?.worstQuadrant;
+  const cl = px?.climate;
 
   // Severity — vegetation stress primary, reinforced by climate
-  const climateSevere = cl &&
-    (cl.droughtSeverity === "severe" || cl.droughtSeverity === "extreme" ||
-     cl.moistureAdequacyIndex < 0.3);
+  const climateSevere =
+    cl &&
+    (cl.droughtSeverity === "severe" ||
+      cl.droughtSeverity === "extreme" ||
+      cl.moistureAdequacyIndex < 0.3);
 
-  const isCritical = stressedPct > 40 || p5Pct < -35 || ndviPct < -25 || (!!climateSevere && stressedPct > 25);
-  const isModerate = !isCritical && (stressedPct > 20 || medianPct < -15 || ndviPct < -20);
-  const isEarly    = !isCritical && !isModerate;
+  const isCritical =
+    stressedPct > 40 ||
+    p5Pct < -35 ||
+    ndviPct < -25 ||
+    (!!climateSevere && stressedPct > 25);
+  const isModerate =
+    !isCritical && (stressedPct > 20 || medianPct < -15 || ndviPct < -20);
+  const isEarly = !isCritical && !isModerate;
 
   // Severity phrases
   const swahiliPhrase = isCritical
     ? "Malisho iko katika hali mbaya sana"
     : isModerate
-    ? "Nguvu inaondoka nyikani — majani yanakausha"
-    : "Dalili za kwanza zinaonekana";
+      ? "Nguvu inaondoka nyikani — majani yanakausha"
+      : "Dalili za kwanza zinaonekana";
 
   // Pixel-level data line
   const pixelLine = px
@@ -154,9 +164,9 @@ function buildTemplateScript(
   let climateLine = "";
   if (cl) {
     const precip = cl.totalPrecip30dMm.toFixed(0);
-    const temp   = cl.tempC.toFixed(1);
-    const mai    = cl.moistureAdequacyIndex;
-    const sm     = (cl.meanSoilMoisture * 100).toFixed(1);
+    const temp = cl.tempC.toFixed(1);
+    const mai = cl.moistureAdequacyIndex;
+    const sm = (cl.meanSoilMoisture * 100).toFixed(1);
 
     if (cl.droughtSeverity === "extreme" || cl.droughtSeverity === "severe") {
       climateLine =
@@ -168,8 +178,7 @@ function buildTemplateScript(
         `Hali ya mvua pia inachangia — ${precip}mm katika siku 30, ` +
         `joto ${temp}°C, unyevu wa udongo ${sm}%. `;
     } else if (cl.droughtSeverity === "mild") {
-      climateLine =
-        `Mvua ya siku 30 ni ${precip}mm — chini kidogo ya mahitaji ya malisho. `;
+      climateLine = `Mvua ya siku 30 ni ${precip}mm — chini kidogo ya mahitaji ya malisho. `;
     }
     // "none" severity — climate is fine, don't add noise
   }
@@ -179,11 +188,14 @@ function buildTemplateScript(
   // they have BEFORE asking these — never assume cows or a specific place.
   let question: string;
   if (isCritical) {
-    question = "Je, visima na maeneo ya maji yanafanya kazi — na je, maji yanatosha kwa mifugo yako? Are your water points still functioning and is there enough water for your animals?";
+    question =
+      "Je, visima na maeneo ya maji yanafanya kazi — na je, maji yanatosha kwa mifugo yako? Are your water points still functioning and is there enough water for your animals?";
   } else if (isModerate) {
-    question = "Je, mifugo yako inabadilisha mwelekeo wa malisho, au inabaki sehemu moja? Have your animals started moving toward new grazing areas, or are they staying put?";
+    question =
+      "Je, mifugo yako inabadilisha mwelekeo wa malisho, au inabaki sehemu moja? Have your animals started moving toward new grazing areas, or are they staying put?";
   } else {
-    question = "Je, unaona mabadiliko katika rangi ya majani au tabia ya kula ya mifugo? Are you noticing any changes in grass colour or how your livestock graze?";
+    question =
+      "Je, unaona mabadiliko katika rangi ya majani au tabia ya kula ya mifugo? Are you noticing any changes in grass colour or how your livestock graze?";
   }
 
   const script =
@@ -195,8 +207,16 @@ function buildTemplateScript(
     `Tunataka kujua hali halisi kutoka kwako — wewe ndiye mtaalamu wa ardhi hii. `;
 
   logger.info(
-    { ndviPct, stressedPct, medianPct, isCritical, isModerate, isEarly,
-      droughtSeverity: cl?.droughtSeverity, mai: cl?.moistureAdequacyIndex },
+    {
+      ndviPct,
+      stressedPct,
+      medianPct,
+      isCritical,
+      isModerate,
+      isEarly,
+      droughtSeverity: cl?.droughtSeverity,
+      mai: cl?.moistureAdequacyIndex,
+    },
     "[AI Script Generation] Climate-aware template script built",
   );
   return { script, question };
@@ -222,8 +242,8 @@ export async function generateScript(
 - Most stressed quadrant: ${px.worstQuadrant}`
         : "";
 
-      const cl  = px?.climate;
-      const fc  = px?.forecast;
+      const cl = px?.climate;
+      const fc = px?.forecast;
 
       const climateLines = cl
         ? `\nCurrent climate (last 30 days, Open-Meteo ERA5):
@@ -271,11 +291,15 @@ Return JSON: {"script": "<45-second Swahili/English opening — weave in satelli
       });
 
       if (result) {
-        const choices = result["choices"] as Array<{ message: { content: string } }>;
+        const choices = result["choices"] as Array<{
+          message: { content: string };
+        }>;
         const text = choices[0].message.content;
         const match = text.match(/\{[\s\S]*\}/);
         if (match) {
-          const parsed = JSON.parse(sanitizeJsonString(match[0])) as GeneratedScript;
+          const parsed = JSON.parse(
+            sanitizeJsonString(match[0]),
+          ) as GeneratedScript;
           logger.info("[AI Script Generation] GPT-4o script generated");
           return parsed;
         }
@@ -300,7 +324,8 @@ export async function generateActionTag(
         messages: [
           {
             role: "system",
-            content: "Classify pastoralist feedback into a 2-4 word action tag. Return only the tag.",
+            content:
+              "Classify pastoralist feedback into a 2-4 word action tag. Return only the tag.",
           },
           {
             role: "user",
@@ -317,7 +342,9 @@ Tags: "Water Crisis", "Movement Started", "Supplementation Needed", "Normal Graz
       });
 
       if (result) {
-        const choices = result["choices"] as Array<{ message: { content: string } }>;
+        const choices = result["choices"] as Array<{
+          message: { content: string };
+        }>;
         return choices[0].message.content.trim();
       }
     } catch (err) {
@@ -335,16 +362,46 @@ function keywordActionTag(transcript: string, delta: VegetationDelta): string {
 
   const has = (...words: string[]) => words.some((w) => t.includes(w));
 
-  if (has("no water", "maji hakuna", "borehole", "kisima", "dry", "kavu", "empty", "tupu"))
+  if (
+    has(
+      "no water",
+      "maji hakuna",
+      "borehole",
+      "kisima",
+      "dry",
+      "kavu",
+      "empty",
+      "tupu",
+    )
+  )
     return delta.NDVI.delta_pct < -20 ? "Water Crisis" : "Borehole Depleted";
 
-  if (has("moving", "kuhamia", "moved", "tunaenda", "migration", "new area", "eneo jipya"))
+  if (
+    has(
+      "moving",
+      "kuhamia",
+      "moved",
+      "tunaenda",
+      "migration",
+      "new area",
+      "eneo jipya",
+    )
+  )
     return "Movement Started";
 
   if (has("supplement", "chakula", "hay", "nyasi", "feed", "kulisha"))
     return "Supplementation Needed";
 
-  if (has("reducing", "kupunguza", "sold", "kuuza", "less cattle", "ng'ombe wachache"))
+  if (
+    has(
+      "reducing",
+      "kupunguza",
+      "sold",
+      "kuuza",
+      "less cattle",
+      "ng'ombe wachache",
+    )
+  )
     return "Herd Reduction";
 
   if (has("ok", "sawa", "normal", "kawaida", "good", "nzuri", "fine"))
@@ -354,7 +411,9 @@ function keywordActionTag(transcript: string, delta: VegetationDelta): string {
     return "Dry Season Stress";
 
   // Default based on severity
-  return delta.NDVI.delta_pct < -20 ? "Dry Season Stress" : "Early Warning Noted";
+  return delta.NDVI.delta_pct < -20
+    ? "Dry Season Stress"
+    : "Early Warning Noted";
 }
 
 // Transcription is handled natively by the Azure OpenAI Realtime API
@@ -455,7 +514,9 @@ export async function extractIndicators(
   transcript: string,
 ): Promise<ExtractedIndicators | null> {
   if (!CHAT_DEPLOYMENT) {
-    logger.info("Skipping indicator extraction — no chat deployment configured");
+    logger.info(
+      "Skipping indicator extraction — no chat deployment configured",
+    );
     return null;
   }
   if (!transcript.trim()) return null;
@@ -471,35 +532,55 @@ export async function extractIndicators(
       response_format: { type: "json_object" },
     });
     if (!result) return null;
-    const choices = result["choices"] as Array<{ message: { content: string } }>;
+    const choices = result["choices"] as Array<{
+      message: { content: string };
+    }>;
     const text = choices[0]?.message?.content ?? "";
     const match = text.match(/\{[\s\S]*\}/);
     if (!match) {
       logger.warn({ text }, "Indicator extractor returned no JSON");
       return null;
     }
-    const parsed = JSON.parse(sanitizeJsonString(match[0])) as Partial<ExtractedIndicators>;
+    const parsed = JSON.parse(
+      sanitizeJsonString(match[0]),
+    ) as Partial<ExtractedIndicators>;
 
     // Normalise & defend against hallucination
-    const normEnum = <T extends string>(v: unknown, allowed: readonly T[]): T | null =>
-      typeof v === "string" && (allowed as readonly string[]).includes(v) ? (v as T) : null;
+    const normEnum = <T extends string>(
+      v: unknown,
+      allowed: readonly T[],
+    ): T | null =>
+      typeof v === "string" && (allowed as readonly string[]).includes(v)
+        ? (v as T)
+        : null;
     const normNum = (v: unknown, min: number, max: number): number | null =>
-      typeof v === "number" && Number.isFinite(v) && v >= min && v <= max ? v : null;
+      typeof v === "number" && Number.isFinite(v) && v >= min && v <= max
+        ? v
+        : null;
     const normStr = (v: unknown, max = 500): string | null =>
-      typeof v === "string" && v.trim().length > 0 ? v.trim().slice(0, max) : null;
+      typeof v === "string" && v.trim().length > 0
+        ? v.trim().slice(0, max)
+        : null;
 
     // Enforce ILRI/FAO half-step granularity (1.0, 1.5, …, 5.0)
     const rawBcs = normNum(parsed.bcs_score, 1, 5);
     const bcsScore = rawBcs == null ? null : Math.round(rawBcs * 2) / 2;
     const bcsConfidence = normEnum(parsed.bcs_confidence, [
-      "high", "medium", "low", "uncertain",
+      "high",
+      "medium",
+      "low",
+      "uncertain",
     ] as const);
 
     const indicators: ExtractedIndicators = {
       bcs_score: bcsScore,
       bcs_raw_response: normStr(parsed.bcs_raw_response, 250),
       bcs_species: normEnum(parsed.bcs_species, [
-        "cattle", "goats", "sheep", "camels", "mixed",
+        "cattle",
+        "goats",
+        "sheep",
+        "camels",
+        "mixed",
       ] as const),
       bcs_confidence: bcsConfidence,
       // Always server-derived — never trust the model's self-report. If we
@@ -510,32 +591,53 @@ export async function extractIndicators(
         bcsConfidence === "low" ||
         bcsConfidence == null,
       offtake_rate: normEnum(parsed.offtake_rate, [
-        "early", "normal", "not_selling",
+        "early",
+        "normal",
+        "not_selling",
       ] as const),
       offtake_raw_response: normStr(parsed.offtake_raw_response, 250),
       mortality_rate: normEnum(parsed.mortality_rate, [
-        "none", "1-3", "4-plus",
+        "none",
+        "1-3",
+        "4-plus",
       ] as const),
       mortality_raw_response: normStr(parsed.mortality_raw_response, 250),
       milk_production: normEnum(parsed.milk_production, [
-        "normal", "reduced", "stopped",
+        "normal",
+        "reduced",
+        "stopped",
       ] as const),
       milk_raw_response: normStr(parsed.milk_raw_response, 250),
       water_trekking_distance: normEnum(parsed.water_trekking_distance, [
-        "under_5km", "5-10km", "over_10km",
+        "under_5km",
+        "5-10km",
+        "over_10km",
       ] as const),
       water_trekking_raw: normStr(parsed.water_trekking_raw, 250),
       water_point_name: normStr(parsed.water_point_name, 100),
       water_point_status: normEnum(parsed.water_point_status, [
-        "operational_good", "operational_poor", "not_operational", "dry", "unknown",
+        "operational_good",
+        "operational_poor",
+        "not_operational",
+        "dry",
+        "unknown",
       ] as const),
       water_point_raw_response: normStr(parsed.water_point_raw_response, 250),
       supplementary_feeding: normEnum(parsed.supplementary_feeding, [
-        "yes", "no", "planning",
+        "yes",
+        "no",
+        "planning",
       ] as const),
-      supplementary_raw_response: normStr(parsed.supplementary_raw_response, 250),
+      supplementary_raw_response: normStr(
+        parsed.supplementary_raw_response,
+        250,
+      ),
       reported_quadrant: normEnum(parsed.reported_quadrant, [
-        "NW", "NE", "SW", "SE", "unknown",
+        "NW",
+        "NE",
+        "SW",
+        "SE",
+        "unknown",
       ] as const),
       reported_location: normStr(parsed.reported_location, 100),
       indicators_collected: 0,
@@ -556,7 +658,8 @@ export async function extractIndicators(
       wpsCollected,
       indicators.supplementary_feeding != null,
     ];
-    indicators.indicators_collected = primaryAndSecondary.filter(Boolean).length;
+    indicators.indicators_collected =
+      primaryAndSecondary.filter(Boolean).length;
 
     logger.info(
       {

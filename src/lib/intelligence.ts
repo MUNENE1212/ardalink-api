@@ -4,7 +4,11 @@ import {
   calculateDelta,
   type VegetationDelta,
 } from "./baseline.js";
-import { generateScript, type GeneratedScript, type PixelContext } from "./openai.js";
+import {
+  generateScript,
+  type GeneratedScript,
+  type PixelContext,
+} from "./openai.js";
 import { initiateCall, storeCallSession } from "./voice.js";
 import { fetchClimateSnapshot, type ClimateSnapshot } from "./climate.js";
 import { computeForecast, type VegetationForecast } from "./predict.js";
@@ -37,8 +41,18 @@ export interface CycleOptions {
 }
 
 const MONTH_NAMES = [
-  "JAN","FEB","MAR","APR","MAY","JUN",
-  "JUL","AUG","SEP","OCT","NOV","DEC",
+  "JAN",
+  "FEB",
+  "MAR",
+  "APR",
+  "MAY",
+  "JUN",
+  "JUL",
+  "AUG",
+  "SEP",
+  "OCT",
+  "NOV",
+  "DEC",
 ];
 
 let lastResult: IntelligenceResult | null = null;
@@ -78,16 +92,24 @@ export async function runIntelligenceCycle(
   const month = now.getMonth() + 1;
   const month_name = MONTH_NAMES[month - 1]!;
 
-  if (dryRun) logger.info("[DRY RUN] Call will be skipped — all analysis steps run");
-  if (forceAlert) logger.info("[FORCE ALERT] Trigger threshold bypassed for testing");
+  if (dryRun)
+    logger.info("[DRY RUN] Call will be skipped — all analysis steps run");
+  if (forceAlert)
+    logger.info("[FORCE ALERT] Trigger threshold bypassed for testing");
 
   try {
     // ── Steps 1 + 1b: Satellite pixel analysis AND climate snapshot (parallel) ─
-    logger.info({ month, month_name }, "[Satellite Check] Starting pixel-level analysis + climate fetch");
+    logger.info(
+      { month, month_name },
+      "[Satellite Check] Starting pixel-level analysis + climate fetch",
+    );
     const [live, climate] = await Promise.all([
       fetchLiveVegetation(),
       fetchClimateSnapshot().catch((err) => {
-        logger.warn({ err }, "[Climate] Fetch failed — continuing without climate data");
+        logger.warn(
+          { err },
+          "[Climate] Fetch failed — continuing without climate data",
+        );
         return undefined;
       }),
     ]);
@@ -110,16 +132,22 @@ export async function runIntelligenceCycle(
     );
 
     // ── Steps 2 + 2b: Baseline match AND 14-day forecast (parallel) ──────────
-    logger.info({ month, month_name }, "[Baseline Match] Fetching ward baseline + 14-day forecast");
+    logger.info(
+      { month, month_name },
+      "[Baseline Match] Fetching ward baseline + 14-day forecast",
+    );
     const [baseline, forecast] = await Promise.all([
       getMonthlyBaseline(month),
       computeForecast({
         stressedPixelPct: live.anomaly.wardStressedPixelPct,
-        worstQuadrant:    live.anomaly.worstQuadrant,
-        currentMAI:       climate?.rolling30Day.moistureAdequacyIndex ?? 0.5,
+        worstQuadrant: live.anomaly.worstQuadrant,
+        currentMAI: climate?.rolling30Day.moistureAdequacyIndex ?? 0.5,
         month,
       }).catch((err) => {
-        logger.warn({ err }, "[Forecast] Compute failed — continuing without forecast");
+        logger.warn(
+          { err },
+          "[Forecast] Compute failed — continuing without forecast",
+        );
         return undefined;
       }),
     ]);
@@ -145,7 +173,7 @@ export async function runIntelligenceCycle(
       live,
       delta,
       triggered: delta.triggered || forceAlert,
-      climate:  climate  ?? undefined,
+      climate: climate ?? undefined,
       forecast: forecast ?? undefined,
       dry_run: dryRun || undefined,
     };
@@ -154,7 +182,10 @@ export async function runIntelligenceCycle(
 
     if (!shouldAlert) {
       result.skip_reason = delta.trigger_reason;
-      logger.info({ skip_reason: result.skip_reason }, "No alert triggered — vegetation within normal range");
+      logger.info(
+        { skip_reason: result.skip_reason },
+        "No alert triggered — vegetation within normal range",
+      );
       lastResult = result;
       void saveSatelliteSnapshot(result);
       return result;
@@ -163,7 +194,9 @@ export async function runIntelligenceCycle(
     // ── Step 4: AI Script Generation ───────────────────────────────────────
     // Pass pixel context so the script references specific numbers:
     // "34% of the ward is stressed", "SW quadrant is worst", etc.
-    logger.info("[AI Script Generation] Building ArdaLink script with pixel context");
+    logger.info(
+      "[AI Script Generation] Building ArdaLink script with pixel context",
+    );
     const px: PixelContext = {
       wardStressedPixelPct: live.anomaly.wardStressedPixelPct,
       medianAnomalyPct: live.anomaly.NDVI.p50,
@@ -173,30 +206,30 @@ export async function runIntelligenceCycle(
       ...(climate
         ? {
             climate: {
-              tempC:                   climate.current.temperatureC,
-              humidityPct:             climate.current.humidityPct,
-              totalPrecip30dMm:        climate.rolling30Day.totalPrecipMm,
-              rainyDays:               climate.rolling30Day.rainyDays,
-              meanSoilMoisture:        climate.rolling30Day.meanSoilMoisture,
-              moistureAdequacyIndex:   climate.rolling30Day.moistureAdequacyIndex,
-              droughtSeverity:         climate.rolling30Day.droughtSeverity,
-              totalET0Mm:              climate.rolling30Day.totalET0Mm,
+              tempC: climate.current.temperatureC,
+              humidityPct: climate.current.humidityPct,
+              totalPrecip30dMm: climate.rolling30Day.totalPrecipMm,
+              rainyDays: climate.rolling30Day.rainyDays,
+              meanSoilMoisture: climate.rolling30Day.meanSoilMoisture,
+              moistureAdequacyIndex: climate.rolling30Day.moistureAdequacyIndex,
+              droughtSeverity: climate.rolling30Day.droughtSeverity,
+              totalET0Mm: climate.rolling30Day.totalET0Mm,
             },
           }
         : {}),
       ...(forecast
         ? {
             forecast: {
-              totalPrecip14dMm:        forecast.forecast14d.totalPrecipMm,
-              totalET0_14dMm:          forecast.forecast14d.totalET0Mm,
-              effectiveRainMm:         forecast.forecast14d.effectiveRainMm,
-              forecastMAI:             forecast.forecast14d.forecastMAI,
-              rainyDays:               forecast.forecast14d.rainyDays,
-              stressDirection:         forecast.outlook.stressDirection,
-              riskLevel:               forecast.outlook.riskLevel,
-              seasonalTrend:           forecast.seasonal.trend,
-              estimatedRecoveryDays:   forecast.outlook.estimatedRecoveryDays,
-              recommendation:          forecast.outlook.recommendation,
+              totalPrecip14dMm: forecast.forecast14d.totalPrecipMm,
+              totalET0_14dMm: forecast.forecast14d.totalET0Mm,
+              effectiveRainMm: forecast.forecast14d.effectiveRainMm,
+              forecastMAI: forecast.forecast14d.forecastMAI,
+              rainyDays: forecast.forecast14d.rainyDays,
+              stressDirection: forecast.outlook.stressDirection,
+              riskLevel: forecast.outlook.riskLevel,
+              seasonalTrend: forecast.seasonal.trend,
+              estimatedRecoveryDays: forecast.outlook.estimatedRecoveryDays,
+              recommendation: forecast.outlook.recommendation,
             },
           }
         : {}),
@@ -212,13 +245,16 @@ export async function runIntelligenceCycle(
     }
 
     // ── Step 5: Call Triggered ─────────────────────────────────────────────
-    logger.info({ phone }, "[Call Triggered] Storing session and initiating call");
+    logger.info(
+      { phone },
+      "[Call Triggered] Storing session and initiating call",
+    );
     storeCallSession(phone, {
-      script:   script.script,
+      script: script.script,
       question: script.question,
       delta,
-      month:    month_name,
-      climate:  climate  ?? undefined,
+      month: month_name,
+      climate: climate ?? undefined,
       forecast: forecast ?? undefined,
     });
 

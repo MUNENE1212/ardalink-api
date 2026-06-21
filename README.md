@@ -35,17 +35,17 @@ Open `http://localhost:3000/api/docs` for the interactive API.
 
 ## What this service does
 
-| Capability | Endpoint |
-|---|---|
-| Intelligence pipeline (NDVI delta → call decision) | `POST /api/trigger-check` |
-| Current drought status snapshot | `GET /api/status` |
-| Voice call bridge (phone) | `WS /api/voice-stream` |
-| Voice call bridge (browser) | `WS /api/browser-voice-stream` |
-| Africa's Talking callback (returns `<Stream>`) | `POST /api/voice-callback` |
-| One-shot call token | `POST /api/call-tokens` |
-| Ground truth reports | `GET /api/ground-truth/recent` |
-| Pastoralist directory CRUD | `GET|POST|DELETE /api/pastoralists` |
-| Health probe | `GET /api/healthz` |
+| Capability                                         | Endpoint                       |
+| -------------------------------------------------- | ------------------------------ | ---- | ------------------------- |
+| Intelligence pipeline (NDVI delta → call decision) | `POST /api/trigger-check`      |
+| Current drought status snapshot                    | `GET /api/status`              |
+| Voice call bridge (phone)                          | `WS /api/voice-stream`         |
+| Voice call bridge (browser)                        | `WS /api/browser-voice-stream` |
+| Africa's Talking callback (returns `<Stream>`)     | `POST /api/voice-callback`     |
+| One-shot call token                                | `POST /api/call-tokens`        |
+| Ground truth reports                               | `GET /api/ground-truth/recent` |
+| Pastoralist directory CRUD                         | `GET                           | POST | DELETE /api/pastoralists` |
+| Health probe                                       | `GET /api/healthz`             |
 
 Full route list: [`docs/02-API.md`](docs/02-API.md).
 

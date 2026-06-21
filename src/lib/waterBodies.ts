@@ -18,7 +18,10 @@
 // @ts-ignore — @google/earthengine ships CJS without full typings
 import EE from "@google/earthengine";
 import { initEE, evaluate, WARD_BBOX_EXPORT } from "./satellite.js";
-import { BULA_PESA_LANDMARKS, type Landmark } from "./data/bulaPesaLandmarks.js";
+import {
+  BULA_PESA_LANDMARKS,
+  type Landmark,
+} from "./data/bulaPesaLandmarks.js";
 import { logger } from "./logger.js";
 
 const [minLon, minLat, maxLon, maxLat] = WARD_BBOX_EXPORT;
@@ -112,7 +115,9 @@ function nearestLandmark(
 function findClusters(wet: boolean[][]): Array<Array<[number, number]>> {
   const rows = wet.length;
   const cols = rows > 0 ? wet[0]!.length : 0;
-  const seen = Array.from({ length: rows }, () => new Array<boolean>(cols).fill(false));
+  const seen = Array.from({ length: rows }, () =>
+    new Array<boolean>(cols).fill(false),
+  );
   const clusters: Array<Array<[number, number]>> = [];
 
   for (let r = 0; r < rows; r++) {
@@ -278,8 +283,17 @@ export async function getSatelliteWaterBodies(): Promise<SatelliteWaterBody[]> {
         // Swallow here so background refreshers (no awaiter) never produce
         // an unhandled rejection. Cold-start callers detect failure via
         // the fact that `cache` is still null after the await.
-        logger.error({ err }, "[WaterBodies] fetch failed — keeping previous cache");
-        return { at: 0, bodies: [], windowStart: "", windowEnd: "", imageCount: 0 };
+        logger.error(
+          { err },
+          "[WaterBodies] fetch failed — keeping previous cache",
+        );
+        return {
+          at: 0,
+          bodies: [],
+          windowStart: "",
+          windowEnd: "",
+          imageCount: 0,
+        };
       })
       .finally(() => {
         inFlight = null;
@@ -297,7 +311,9 @@ export async function getSatelliteWaterBodies(): Promise<SatelliteWaterBody[]> {
   // above) so no try/catch needed and no unhandled rejection if we time out.
   const entry = await Promise.race<CacheEntry | "timeout">([
     inFlight,
-    new Promise<"timeout">((resolve) => setTimeout(() => resolve("timeout"), 2500)),
+    new Promise<"timeout">((resolve) =>
+      setTimeout(() => resolve("timeout"), 2500),
+    ),
   ]);
   if (entry === "timeout") return [];
   return entry.bodies;
@@ -309,7 +325,10 @@ export async function warmSatelliteWaterBodies(): Promise<void> {
     const entry = await fetchOnce();
     cache = entry;
   } catch (err) {
-    logger.error({ err }, "[WaterBodies] warm-up failed — will retry on demand");
+    logger.error(
+      { err },
+      "[WaterBodies] warm-up failed — will retry on demand",
+    );
   }
 }
 

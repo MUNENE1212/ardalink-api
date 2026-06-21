@@ -7,5 +7,6 @@ name: Feature request
 ## Proposal
 
 ## Acceptance
+
 - [ ]
 - [ ]

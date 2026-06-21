@@ -51,35 +51,35 @@ export const groundTruthReportsTable = pgTable("ground_truth_reports", {
   durationSeconds: integer("duration_seconds"),
 
   // ── PRIMARY INDICATOR: Body Condition Score ──────────────────────────────
-  bcsScore: real("bcs_score"),                            // 1.0 – 5.0
-  bcsRawResponse: text("bcs_raw_response"),               // herder's exact words
-  bcsSpecies: text("bcs_species"),                        // cattle|goats|sheep|camels|mixed
-  bcsConfidence: text("bcs_confidence"),                  // high|medium|low|uncertain
-  bcsFlagFollowup: boolean("bcs_flag_followup"),          // true if uncertain
+  bcsScore: real("bcs_score"), // 1.0 – 5.0
+  bcsRawResponse: text("bcs_raw_response"), // herder's exact words
+  bcsSpecies: text("bcs_species"), // cattle|goats|sheep|camels|mixed
+  bcsConfidence: text("bcs_confidence"), // high|medium|low|uncertain
+  bcsFlagFollowup: boolean("bcs_flag_followup"), // true if uncertain
 
   // ── SECONDARY INDICATORS ─────────────────────────────────────────────────
-  offtakeRate: text("offtake_rate"),                      // early|normal|not_selling
+  offtakeRate: text("offtake_rate"), // early|normal|not_selling
   offtakeRawResponse: text("offtake_raw_response"),
 
-  mortalityRate: text("mortality_rate"),                  // none|1-3|4-plus
+  mortalityRate: text("mortality_rate"), // none|1-3|4-plus
   mortalityRawResponse: text("mortality_raw_response"),
 
-  milkProduction: text("milk_production"),                // normal|reduced|stopped
+  milkProduction: text("milk_production"), // normal|reduced|stopped
   milkRawResponse: text("milk_raw_response"),
 
   waterTrekkingDistance: text("water_trekking_distance"), // under_5km|5-10km|over_10km
   waterTrekkingRaw: text("water_trekking_raw"),
 
-  waterPointName: text("water_point_name"),               // matched OSM water point
-  waterPointStatus: text("water_point_status"),           // operational_good|operational_poor|not_operational|dry|unknown
+  waterPointName: text("water_point_name"), // matched OSM water point
+  waterPointStatus: text("water_point_status"), // operational_good|operational_poor|not_operational|dry|unknown
   waterPointRawResponse: text("water_point_raw_response"),
 
-  supplementaryFeeding: text("supplementary_feeding"),    // yes|no|planning
+  supplementaryFeeding: text("supplementary_feeding"), // yes|no|planning
   supplementaryRawResponse: text("supplementary_raw_response"),
 
   // ── Quadrant the herder is reporting from (derived from landmark / water point) ─
-  reportedQuadrant: text("reported_quadrant"),            // NW|NE|SW|SE|unknown
-  reportedLocation: text("reported_location"),            // landmark / place name they mentioned
+  reportedQuadrant: text("reported_quadrant"), // NW|NE|SW|SE|unknown
+  reportedLocation: text("reported_location"), // landmark / place name they mentioned
 
   // ── Correlated satellite + climate snapshot at time of call ──────────────
   ndviScore: real("ndvi_score"),

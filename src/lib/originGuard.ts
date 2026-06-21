@@ -26,7 +26,11 @@ export function isTrustedOrigin(origin: string | undefined | null): boolean {
 }
 
 /** Express middleware that blocks requests from untrusted origins. */
-export function requireTrustedOrigin(req: Request, res: Response, next: NextFunction): void {
+export function requireTrustedOrigin(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): void {
   const origin = req.headers.origin;
   if (!isTrustedOrigin(origin)) {
     req.log.warn({ origin }, "Request rejected — untrusted origin");

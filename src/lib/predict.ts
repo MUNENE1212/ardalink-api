@@ -14,10 +14,10 @@ import { logger } from "./logger.js";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-export type RiskLevel     = "low" | "moderate" | "high" | "critical";
-export type StressDir     = "improving" | "stable" | "worsening";
-export type Confidence    = "low" | "medium" | "high";
-export type SeasonTrend   = "improving" | "declining" | "stable";
+export type RiskLevel = "low" | "moderate" | "high" | "critical";
+export type StressDir = "improving" | "stable" | "worsening";
+export type Confidence = "low" | "medium" | "high";
+export type SeasonTrend = "improving" | "declining" | "stable";
 
 export interface DailyForecast {
   date: string;
@@ -35,7 +35,7 @@ export interface ForecastWindow {
    * before plant-available water accumulates.
    */
   effectiveRainMm: number;
-  forecastMAI: number;       // precip / ET₀ — <0.3 = deficit, >0.7 = adequate
+  forecastMAI: number; // precip / ET₀ — <0.3 = deficit, >0.7 = adequate
   rainyDays: number;
   peakPrecipDate: string;
   peakPrecipMm: number;
@@ -47,7 +47,7 @@ export interface SeasonalContext {
   nextMonthNDVI: number;
   twoMonthsNDVI: number;
   trend: SeasonTrend;
-  trendPct: number;  // % change expected current → next month
+  trendPct: number; // % change expected current → next month
 }
 
 export interface VegetationForecast {
@@ -83,14 +83,17 @@ const WARD_LON = parseFloat(process.env.WARD_CLIMATE_LON ?? "37.583");
 
 async function fetchForecastWindow(): Promise<ForecastWindow> {
   const url = new URL("https://api.open-meteo.com/v1/forecast");
-  url.searchParams.set("latitude",      String(WARD_LAT));
-  url.searchParams.set("longitude",     String(WARD_LON));
+  url.searchParams.set("latitude", String(WARD_LAT));
+  url.searchParams.set("longitude", String(WARD_LON));
   url.searchParams.set("forecast_days", "14");
-  url.searchParams.set("daily", [
-    "precipitation_sum",
-    "et0_fao_evapotranspiration",
-    "temperature_2m_max",
-  ].join(","));
+  url.searchParams.set(
+    "daily",
+    [
+      "precipitation_sum",
+      "et0_fao_evapotranspiration",
+      "temperature_2m_max",
+    ].join(","),
+  );
   url.searchParams.set("timezone", "Africa/Nairobi");
 
   const res = await fetch(url.toString(), {
@@ -99,39 +102,42 @@ async function fetchForecastWindow(): Promise<ForecastWindow> {
   });
   if (!res.ok) {
     const t = await res.text();
-    throw new Error(`Open-Meteo forecast error ${res.status}: ${t.slice(0, 200)}`);
+    throw new Error(
+      `Open-Meteo forecast error ${res.status}: ${t.slice(0, 200)}`,
+    );
   }
 
-  const body  = (await res.json()) as Record<string, unknown>;
+  const body = (await res.json()) as Record<string, unknown>;
   const daily = (body["daily"] ?? {}) as Record<string, unknown>;
 
-  const dates   = (daily["time"]                       as string[] | undefined) ?? [];
-  const precip  = (daily["precipitation_sum"]          as (number|null)[] | undefined) ?? [];
-  const et0     = (daily["et0_fao_evapotranspiration"] as (number|null)[] | undefined) ?? [];
-  const maxTemp = (daily["temperature_2m_max"]         as (number|null)[] | undefined) ?? [];
+  const dates = (daily["time"] as string[] | undefined) ?? [];
+  const precip =
+    (daily["precipitation_sum"] as (number | null)[] | undefined) ?? [];
+  const et0 =
+    (daily["et0_fao_evapotranspiration"] as (number | null)[] | undefined) ??
+    [];
+  const maxTemp =
+    (daily["temperature_2m_max"] as (number | null)[] | undefined) ?? [];
 
   const safeNum = (v: number | null | undefined) =>
     v != null && isFinite(v) ? v : 0;
 
   const dailyRecords: DailyForecast[] = dates.map((date, i) => ({
     date,
-    precipMm:  safeNum(precip[i]),
-    et0Mm:     safeNum(et0[i]),
-    maxTempC:  safeNum(maxTemp[i]),
+    precipMm: safeNum(precip[i]),
+    et0Mm: safeNum(et0[i]),
+    maxTempC: safeNum(maxTemp[i]),
   }));
 
   const totalPrecip = dailyRecords.reduce((s, d) => s + d.precipMm, 0);
-  const totalET0    = dailyRecords.reduce((s, d) => s + d.et0Mm, 0);
-  const rainyDays   = dailyRecords.filter((d) => d.precipMm > 0.5).length;
+  const totalET0 = dailyRecords.reduce((s, d) => s + d.et0Mm, 0);
+  const rainyDays = dailyRecords.filter((d) => d.precipMm > 0.5).length;
 
   // ET₀ = total water demand; 40% is met by bare-soil evaporation, leaving
   // 60% that must be met by rain for plants to have any. Beyond ET₀×0.6,
   // excess rain becomes effective root-zone moisture.
-  const ET0_EVAP_FRACTION = 0.40;
-  const effectiveRain = Math.max(
-    0,
-    totalPrecip - totalET0 * ET0_EVAP_FRACTION,
-  );
+  const ET0_EVAP_FRACTION = 0.4;
+  const effectiveRain = Math.max(0, totalPrecip - totalET0 * ET0_EVAP_FRACTION);
 
   const peakDay = dailyRecords.reduce(
     (best, d) => (d.precipMm > best.precipMm ? d : best),
@@ -141,33 +147,50 @@ async function fetchForecastWindow(): Promise<ForecastWindow> {
   const forecastMAI = totalET0 > 0 ? totalPrecip / totalET0 : 0;
 
   logger.info(
-    { totalPrecip: totalPrecip.toFixed(1), totalET0: totalET0.toFixed(1),
-      effectiveRain: effectiveRain.toFixed(1), forecastMAI: forecastMAI.toFixed(3),
-      rainyDays, peakPrecipDate: peakDay.date },
+    {
+      totalPrecip: totalPrecip.toFixed(1),
+      totalET0: totalET0.toFixed(1),
+      effectiveRain: effectiveRain.toFixed(1),
+      forecastMAI: forecastMAI.toFixed(3),
+      rainyDays,
+      peakPrecipDate: peakDay.date,
+    },
     "[Forecast] 14-day weather window fetched",
   );
 
   return {
-    totalPrecipMm:   parseFloat(totalPrecip.toFixed(1)),
-    totalET0Mm:      parseFloat(totalET0.toFixed(1)),
+    totalPrecipMm: parseFloat(totalPrecip.toFixed(1)),
+    totalET0Mm: parseFloat(totalET0.toFixed(1)),
     effectiveRainMm: parseFloat(effectiveRain.toFixed(1)),
-    forecastMAI:     parseFloat(forecastMAI.toFixed(3)),
+    forecastMAI: parseFloat(forecastMAI.toFixed(3)),
     rainyDays,
-    peakPrecipDate:  peakDay.date,
-    peakPrecipMm:    parseFloat(peakDay.precipMm.toFixed(1)),
-    daily:           dailyRecords,
+    peakPrecipDate: peakDay.date,
+    peakPrecipMm: parseFloat(peakDay.precipMm.toFixed(1)),
+    daily: dailyRecords,
   };
 }
 
 // ── Load seasonal context from Cosmos DB monthly_baselines ──────────────────
 
-async function fetchSeasonalContext(currentMonth: number): Promise<SeasonalContext> {
-  const nextMonth      = (currentMonth % 12) + 1;
-  const twoMonthsAhead = (nextMonth  % 12) + 1;
+async function fetchSeasonalContext(
+  currentMonth: number,
+): Promise<SeasonalContext> {
+  const nextMonth = (currentMonth % 12) + 1;
+  const twoMonthsAhead = (nextMonth % 12) + 1;
 
   const MONTH_NAMES = [
-    "JAN","FEB","MAR","APR","MAY","JUN",
-    "JUL","AUG","SEP","OCT","NOV","DEC",
+    "JAN",
+    "FEB",
+    "MAR",
+    "APR",
+    "MAY",
+    "JUN",
+    "JUL",
+    "AUG",
+    "SEP",
+    "OCT",
+    "NOV",
+    "DEC",
   ];
   const pad = (n: number) => String(n).padStart(2, "0");
 
@@ -182,16 +205,19 @@ async function fetchSeasonalContext(currentMonth: number): Promise<SeasonalConte
         .container("monthly_baselines")
         .item(id, month)
         .read<{ bands: Record<string, { spatial_mean: number }> }>()
-        .then(({ resource }) => resource?.bands?.["NDVI_mean"]?.spatial_mean ?? 0)
+        .then(
+          ({ resource }) => resource?.bands?.["NDVI_mean"]?.spatial_mean ?? 0,
+        )
         .catch(() => 0);
     }),
   );
 
   const [curNDVI, nxtNDVI, t2NDVI] = results as [number, number, number];
 
-  const trendPct = curNDVI > 0
-    ? parseFloat((((nxtNDVI - curNDVI) / Math.abs(curNDVI)) * 100).toFixed(2))
-    : 0;
+  const trendPct =
+    curNDVI > 0
+      ? parseFloat((((nxtNDVI - curNDVI) / Math.abs(curNDVI)) * 100).toFixed(2))
+      : 0;
 
   const trend: SeasonTrend =
     trendPct > 5 ? "improving" : trendPct < -5 ? "declining" : "stable";
@@ -203,8 +229,8 @@ async function fetchSeasonalContext(currentMonth: number): Promise<SeasonalConte
 
   return {
     currentMonthNDVI: curNDVI,
-    nextMonthNDVI:    nxtNDVI,
-    twoMonthsNDVI:    t2NDVI,
+    nextMonthNDVI: nxtNDVI,
+    twoMonthsNDVI: t2NDVI,
     trend,
     trendPct,
   };
@@ -240,7 +266,8 @@ function estimateRecoveryDays(
       ? Math.abs(seasonal.trendPct) * 0.03 // ~3% of the NDVI gain translates to stress relief per day
       : 0;
 
-  const dailyRecoveryPct = (effectiveRainPerDay / 10) * RECOVERY_RATE + seasonalBonus;
+  const dailyRecoveryPct =
+    (effectiveRainPerDay / 10) * RECOVERY_RATE + seasonalBonus;
 
   if (dailyRecoveryPct <= 0.02) return null; // effectively no recovery
 
@@ -257,10 +284,10 @@ function classifyRisk(
   const improving = seasonal.trend === "improving";
 
   if (stressedPct > 50 && forecastMAI < 0.15 && declining) return "critical";
-  if (stressedPct > 50 && forecastMAI < 0.20)               return "critical";
-  if (stressedPct > 40 && forecastMAI < 0.30 && declining)  return "high";
-  if (stressedPct > 40 || forecastMAI < 0.25)               return "high";
-  if (stressedPct > 20 || (forecastMAI < 0.50 && !improving)) return "moderate";
+  if (stressedPct > 50 && forecastMAI < 0.2) return "critical";
+  if (stressedPct > 40 && forecastMAI < 0.3 && declining) return "high";
+  if (stressedPct > 40 || forecastMAI < 0.25) return "high";
+  if (stressedPct > 20 || (forecastMAI < 0.5 && !improving)) return "moderate";
   return "low";
 }
 
@@ -269,9 +296,15 @@ function classifyDirection(
   seasonal: SeasonalContext,
   currentMAI: number,
 ): StressDir {
-  if (forecastMAI >= 0.65 || (forecastMAI >= 0.45 && seasonal.trend === "improving"))
+  if (
+    forecastMAI >= 0.65 ||
+    (forecastMAI >= 0.45 && seasonal.trend === "improving")
+  )
     return "improving";
-  if (forecastMAI < 0.20 || (forecastMAI < 0.35 && seasonal.trend === "declining"))
+  if (
+    forecastMAI < 0.2 ||
+    (forecastMAI < 0.35 && seasonal.trend === "declining")
+  )
     return "worsening";
   // Slight improvement vs past — call stable
   if (forecastMAI > currentMAI * 1.2 && seasonal.trend !== "declining")
@@ -284,9 +317,12 @@ function classifyConfidence(
   stressedPct: number,
 ): Confidence {
   // High confidence when signals align strongly
-  if ((forecastMAI < 0.2 && stressedPct > 45) || (forecastMAI > 0.7 && stressedPct < 20))
+  if (
+    (forecastMAI < 0.2 && stressedPct > 45) ||
+    (forecastMAI > 0.7 && stressedPct < 20)
+  )
     return "high";
-  if (forecastMAI < 0.35 || forecastMAI > 0.60) return "medium";
+  if (forecastMAI < 0.35 || forecastMAI > 0.6) return "medium";
   return "low";
 }
 
@@ -297,7 +333,7 @@ function buildSummary(
   seasonal: SeasonalContext,
 ): string {
   const rain = forecast14d.totalPrecipMm.toFixed(0);
-  const eff  = forecast14d.effectiveRainMm.toFixed(0);
+  const eff = forecast14d.effectiveRainMm.toFixed(0);
 
   if (direction === "improving") {
     return seasonal.trend === "improving"
@@ -324,15 +360,17 @@ function buildRecommendation(
     seasonal.trend === "improving"
       ? "Rainy season is historically approaching — recovery should follow."
       : seasonal.trend === "declining"
-      ? "Dry season is deepening; plan for extended stress."
-      : "";
+        ? "Dry season is deepening; plan for extended stress."
+        : "";
 
   if (riskLevel === "critical") {
     return (
       `Reduce herd load urgently — remaining vegetation cannot support current numbers. ` +
       `Move animals away from the ${worstQuadrant} area where stress is most severe. ` +
       `Locate and secure all water points now. ` +
-      (seasonNote ? seasonNote : "No natural recovery expected in the next 2–3 weeks.")
+      (seasonNote
+        ? seasonNote
+        : "No natural recovery expected in the next 2–3 weeks.")
     );
   }
   if (riskLevel === "high") {
@@ -363,7 +401,9 @@ function buildRecommendation(
   // low
   return (
     `Conditions manageable — continue current grazing pattern. ` +
-    (worstQuadrant !== "uniform" ? `Watch the ${worstQuadrant} area for early stress signs. ` : "") +
+    (worstQuadrant !== "uniform"
+      ? `Watch the ${worstQuadrant} area for early stress signs. `
+      : "") +
     (seasonNote || "")
   );
 }
@@ -380,17 +420,17 @@ function buildKeyDrivers(
   if (forecast14d.forecastMAI < 0.25) {
     drivers.push(
       `14-day forecast: only ${forecast14d.totalPrecipMm.toFixed(0)}mm rain vs ` +
-      `${forecast14d.totalET0Mm.toFixed(0)}mm potential evaporation — soil will lose more water than it gains`,
+        `${forecast14d.totalET0Mm.toFixed(0)}mm potential evaporation — soil will lose more water than it gains`,
     );
   } else if (forecast14d.forecastMAI >= 0.65) {
     drivers.push(
       `${forecast14d.totalPrecipMm.toFixed(0)}mm of rain expected — ` +
-      `${forecast14d.effectiveRainMm.toFixed(0)}mm will reach roots and ease vegetation stress`,
+        `${forecast14d.effectiveRainMm.toFixed(0)}mm will reach roots and ease vegetation stress`,
     );
   } else {
     drivers.push(
       `Partial rainfall expected (${forecast14d.totalPrecipMm.toFixed(0)}mm / ` +
-      `${forecast14d.totalET0Mm.toFixed(0)}mm demand) — not enough for full recovery`,
+        `${forecast14d.totalET0Mm.toFixed(0)}mm demand) — not enough for full recovery`,
     );
   }
 
@@ -398,12 +438,12 @@ function buildKeyDrivers(
   if (seasonal.trend === "declining") {
     drivers.push(
       `Seasonal dry-down: NDVI historically drops ${Math.abs(seasonal.trendPct).toFixed(0)}% ` +
-      `in the coming weeks — natural conditions will not compensate for current deficit`,
+        `in the coming weeks — natural conditions will not compensate for current deficit`,
     );
   } else if (seasonal.trend === "improving") {
     drivers.push(
       `Rainy season onset: NDVI historically rises ${seasonal.trendPct.toFixed(0)}% ` +
-      `in the coming weeks — seasonal recovery expected even without exceptional rainfall`,
+        `in the coming weeks — seasonal recovery expected even without exceptional rainfall`,
     );
   }
 
@@ -411,7 +451,7 @@ function buildKeyDrivers(
   if (stressedPct > 45) {
     drivers.push(
       `Current stress is severe (${stressedPct.toFixed(0)}% of pixels below 11-year norm) — ` +
-      `high stress slows vegetation response to rain`,
+        `high stress slows vegetation response to rain`,
     );
   } else if (stressedPct < 20) {
     drivers.push(
@@ -423,7 +463,7 @@ function buildKeyDrivers(
   if (currentMAI < 0.3 && forecast14d.forecastMAI > currentMAI * 1.5) {
     drivers.push(
       `Forecast MAI (${forecast14d.forecastMAI.toFixed(2)}) better than recent 30-day MAI ` +
-      `(${currentMAI.toFixed(2)}) — conditions improving relative to recent past`,
+        `(${currentMAI.toFixed(2)}) — conditions improving relative to recent past`,
     );
   }
 
@@ -463,19 +503,46 @@ export async function computeForecast(
   // (We normalise by holding ET₀ constant; the ratio is the key signal.)
   const combinedMAI = parseFloat(
     (
-      (currentMAI * 30 * forecast14d.totalET0Mm / 14 + forecast14d.totalPrecipMm) /
-      (30 * forecast14d.totalET0Mm / 14 + forecast14d.totalET0Mm)
+      ((currentMAI * 30 * forecast14d.totalET0Mm) / 14 +
+        forecast14d.totalPrecipMm) /
+      ((30 * forecast14d.totalET0Mm) / 14 + forecast14d.totalET0Mm)
     ).toFixed(3),
   );
 
-  const direction  = classifyDirection(forecast14d.forecastMAI, seasonal, currentMAI);
-  const riskLevel  = classifyRisk(stressedPixelPct, forecast14d.forecastMAI, seasonal);
-  const confidence = classifyConfidence(forecast14d.forecastMAI, stressedPixelPct);
-  const estimatedRecoveryDays = estimateRecoveryDays(stressedPixelPct, forecast14d.effectiveRainMm, seasonal);
+  const direction = classifyDirection(
+    forecast14d.forecastMAI,
+    seasonal,
+    currentMAI,
+  );
+  const riskLevel = classifyRisk(
+    stressedPixelPct,
+    forecast14d.forecastMAI,
+    seasonal,
+  );
+  const confidence = classifyConfidence(
+    forecast14d.forecastMAI,
+    stressedPixelPct,
+  );
+  const estimatedRecoveryDays = estimateRecoveryDays(
+    stressedPixelPct,
+    forecast14d.effectiveRainMm,
+    seasonal,
+  );
 
-  const summary        = buildSummary(direction, riskLevel, forecast14d, seasonal);
-  const recommendation = buildRecommendation(riskLevel, direction, worstQuadrant, seasonal, forecast14d);
-  const keyDrivers     = buildKeyDrivers(forecast14d, seasonal, stressedPixelPct, currentMAI);
+  const summary = buildSummary(direction, riskLevel, forecast14d, seasonal);
+  const recommendation = buildRecommendation(
+    riskLevel,
+    direction,
+    worstQuadrant,
+    seasonal,
+    forecast14d,
+  );
+  const keyDrivers = buildKeyDrivers(
+    forecast14d,
+    seasonal,
+    stressedPixelPct,
+    currentMAI,
+  );
 
   const forecast: VegetationForecast = {
     generatedAt: new Date().toISOString(),
@@ -496,7 +563,7 @@ export async function computeForecast(
 
   logger.info(
     {
-      forecastMAI:    forecast14d.forecastMAI,
+      forecastMAI: forecast14d.forecastMAI,
       combinedMAI,
       direction,
       riskLevel,

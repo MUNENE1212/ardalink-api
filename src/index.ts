@@ -10,7 +10,9 @@ import { isTrustedOrigin } from "./lib/originGuard.js";
 const rawPort = process.env["PORT"];
 
 if (!rawPort) {
-  throw new Error("PORT environment variable is required but was not provided.");
+  throw new Error(
+    "PORT environment variable is required but was not provided.",
+  );
 }
 
 const port = Number(rawPort);
@@ -70,7 +72,10 @@ httpServer.on("upgrade", (req, socket, head) => {
     // untrusted (typically a curl or server-to-server probe).
     const origin = req.headers.origin;
     if (!isTrustedOrigin(origin)) {
-      logger.warn({ origin }, "Browser voice WS upgrade rejected — untrusted origin");
+      logger.warn(
+        { origin },
+        "Browser voice WS upgrade rejected — untrusted origin",
+      );
       socket.write("HTTP/1.1 403 Forbidden\r\n\r\n");
       socket.destroy();
       return;
@@ -102,7 +107,10 @@ httpServer.on("upgrade", (req, socket, head) => {
       handleBrowserVoiceStream(ws, consumed.phone, token);
     });
   } else {
-    logger.warn({ pathname: url.pathname }, "WebSocket upgrade rejected — unknown path");
+    logger.warn(
+      { pathname: url.pathname },
+      "WebSocket upgrade rejected — unknown path",
+    );
     socket.destroy();
   }
 });

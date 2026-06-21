@@ -155,7 +155,10 @@ export async function startScheduler(): Promise<void> {
   }, TWENTY_FOUR_HOURS_MS);
 
   logger.info(
-    { climateEveryMs: SIX_HOURS_MS, satelliteCheckEveryMs: TWENTY_FOUR_HOURS_MS },
+    {
+      climateEveryMs: SIX_HOURS_MS,
+      satelliteCheckEveryMs: TWENTY_FOUR_HOURS_MS,
+    },
     "[Scheduler] Background refresh loops started",
   );
 }

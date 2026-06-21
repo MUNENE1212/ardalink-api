@@ -11,7 +11,9 @@ import { z } from "zod/v4";
 
 export const pastoralistsTable = pgTable("pastoralists", {
   id: serial("id").primaryKey(),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
   name: text("name").notNull(),
   phone: text("phone").notNull(),
   location: text("location").notNull().default(""),
@@ -24,7 +26,9 @@ export const pastoralistsTable = pgTable("pastoralists", {
   lastContactAt: timestamp("last_contact_at", { withTimezone: true }),
 });
 
-export const insertPastoralistSchema = createInsertSchema(pastoralistsTable).omit({
+export const insertPastoralistSchema = createInsertSchema(
+  pastoralistsTable,
+).omit({
   id: true,
   createdAt: true,
 });

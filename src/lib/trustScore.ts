@@ -144,7 +144,8 @@ export function computeTrustScore(input: TrustScoreInput): TrustScoreResult {
       input.wardAnomalyPct <= -25 &&
       ind.bcs_score != null &&
       ind.bcs_score >= 4 &&
-      (ind.supplementary_feeding === "no" || ind.supplementary_feeding == null) &&
+      (ind.supplementary_feeding === "no" ||
+        ind.supplementary_feeding == null) &&
       (ind.mortality_rate === "none" || ind.mortality_rate == null)
     ) {
       deduct(20, "contradicts_satellite_optimistic");
