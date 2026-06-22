@@ -1,6 +1,6 @@
-# 00 — Executive Index (CTO Brief)
+# 00 — Executive Index
 
-**Owner**: CTO · **Audience**: Board, Engineering Leads, Partners · **Read**: 5 min · **Next review**: Q3 2026 · **Last verified**: 2026-06-21
+**Author**: Lead Software Engineer · **Audience**: CTO, Board, Engineering Leads, Partners · **Read**: 5 min · **Next review**: Q3 2026 · **Last verified**: 2026-06-21
 
 ---
 

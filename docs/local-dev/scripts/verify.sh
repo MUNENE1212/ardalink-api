@@ -194,6 +194,8 @@ run_tests() {
 run_tests "ardalink-api" "ardalink-api"
 run_tests "ardalink-web" "ardalink-web"
 if [ -d "$REPO_ROOT/ardalink-engine" ]; then
+  # Ensure dev deps (pytest) are installed before running tests.
+  (cd "$REPO_ROOT/ardalink-engine" && uv sync --extra dev >/dev/null 2>&1) || true
   if (cd "$REPO_ROOT/ardalink-engine" && uv run pytest -q >/dev/null 2>&1); then
     pass "ardalink-engine tests pass (pytest)"
   else

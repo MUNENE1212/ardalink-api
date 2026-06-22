@@ -14,6 +14,7 @@ export const pastoralistsTable = pgTable("pastoralists", {
   createdAt: timestamp("created_at", { withTimezone: true })
     .defaultNow()
     .notNull(),
+  tenantId: text("tenant_id").notNull(),
   name: text("name").notNull(),
   phone: text("phone").notNull(),
   location: text("location").notNull().default(""),
@@ -31,6 +32,7 @@ export const insertPastoralistSchema = createInsertSchema(
 ).omit({
   id: true,
   createdAt: true,
+  tenantId: true,
 });
 
 export type InsertPastoralist = z.infer<typeof insertPastoralistSchema>;

@@ -235,49 +235,21 @@ done
 step "ardalink-web (static build)"
 
 cat > "$RUN_DIR/web-server.py" <<'PYEOF'
-import http.server, socketserver
+import http.server, socketserver, urllib.request
 from pathlib import Path
 
 WEB = Path("/tmp/ardalink-local/web")
 DASH = WEB / "dashboard" / "dist"
 TALK = WEB / "talk" / "dist"
 PORT = 8080
+API_UPSTREAM = "http://127.0.0.1:3000"
 
-class H(http.server.SimpleHTTPRequestHandler):
-    def do_GET(self):
-        path = self.path.split("?")[0]
-        if path.startswith("/talk"):
-            rel = path[len("/talk"):].lstrip("/")
-            target = TALK / rel if rel else TALK / "index.html"
-        else:
-            rel = path.lstrip("/")
-            target = DASH / rel if rel else DASH / "index.html"
-        if not target.exists() or target.is_dir():
-            if path.startswith("/talk"):
-                title = "ArdaLink Talk"
-            else:
-                title = "ArdaLink Operator Dashboard"
-            placeholder = f"""<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><title>{title}</title>
-<style>body{{font:14px/1.5 system-ui,sans-serif;padding:2rem;max-width:720px;margin:auto;color:#222}}
-h1{{margin-top:0}}pre{{background:#f4f4f4;padding:1rem;border-radius:6px;overflow:auto}}</style>
-</head><body>
-<h1>{title}</h1>
-<p>The web app's static bundle has not been built yet. See
-<code>docs/local-dev/README.md</code> for the build instructions,
-or use the API directly for now.</p>
-</body></html>"""
-            data = placeholder.encode()
-            self.send_response(200)
-            self.send_header("Content-Type", "text/html; charset=utf-8")
-            self.send_header("Content-Length", str(len(data)))
-            self.end_headers()
-            self.wfile.write(data)
-            return
+class H(http.server.BaseHTTPRequestHandler):
+    def _send_static(self, target, ctype=None):
         try:
             data = target.read_bytes()
             ext = target.suffix.lstrip(".")
-            ctype = {
+            ctype = ctype or {
                 "html": "text/html; charset=utf-8",
                 "js":   "application/javascript; charset=utf-8",
                 "mjs":  "application/javascript; charset=utf-8",
@@ -288,6 +260,7 @@ or use the API directly for now.</p>
                 "jpg":  "image/jpeg",
                 "ico":  "image/x-icon",
                 "txt":  "text/plain; charset=utf-8",
+                "map":  "application/json",
             }.get(ext, "application/octet-stream")
             self.send_response(200)
             self.send_header("Content-Type", ctype)
@@ -296,10 +269,108 @@ or use the API directly for now.</p>
             self.wfile.write(data)
         except Exception as e:
             self.send_error(500, str(e))
+
+    def _proxy(self):
+        url = API_UPSTREAM + self.path
+        length = int(self.headers.get("Content-Length", "0") or 0)
+        body = self.rfile.read(length) if length else None
+        req = urllib.request.Request(url, data=body, method=self.command)
+        for h in ("Content-Type", "Authorization", "X-Tenant-ID", "X-Tenant-Sig"):
+            v = self.headers.get(h)
+            if v: req.add_header(h, v)
+        try:
+            with urllib.request.urlopen(req, timeout=30) as r:
+                self.send_response(r.status)
+                for k, v in r.headers.items():
+                    if k.lower() in ("transfer-encoding", "connection"):
+                        continue
+                    self.send_header(k, v)
+                self.end_headers()
+                self.wfile.write(r.read())
+        except urllib.error.HTTPError as e:
+            self.send_response(e.code)
+            for k, v in (e.headers or {}).items():
+                if k.lower() in ("transfer-encoding", "connection"):
+                    continue
+                self.send_header(k, v)
+            self.end_headers()
+            self.wfile.write(e.read())
+        except Exception as e:
+            self.send_error(502, str(e))
+
+    def _serve_app(self, app_dist, title):
+        path = self.path.split("?")[0]
+        if path.startswith("/" + title.lower().split()[0]):
+            rel = path[len("/" + title.lower().split()[0]):].lstrip("/")
+        else:
+            rel = path.lstrip("/")
+        target = app_dist / rel if rel else app_dist / "index.html"
+        if not target.exists() or target.is_dir():
+            target = app_dist / "index.html"
+        if not target.exists():
+            self._send_placeholder(title)
+            return
+        self._send_static(target)
+
+    def _send_placeholder(self, title):
+        placeholder = f"""<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>{title}</title>
+<style>body{{font:14px/1.5 system-ui,sans-serif;padding:2rem;max-width:720px;margin:auto;color:#222}}
+h1{{margin-top:0}}pre{{background:#f4f4f4;padding:1rem;border-radius:6px;overflow:auto}}</style>
+</head><body>
+<h1>{title}</h1>
+<p>The web app's static bundle has not been built yet. See
+<code>docs/local-dev/README.md</code> for the build instructions,
+or use the API directly for now.</p>
+</body></html>"""
+        self._send_static_string(placeholder, "text/html; charset=utf-8")
+
+    def _send_static_string(self, s, ctype):
+        data = s.encode()
+        self.send_response(200)
+        self.send_header("Content-Type", ctype)
+        self.send_header("Content-Length", str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
+
+    def do_GET(self):
+        if self.path.startswith("/api/") or self.path.startswith("/ws"):
+            self._proxy()
+            return
+        if self.path.startswith("/talk"):
+            self._serve_app(TALK, "ArdaLink Talk")
+            return
+        self._serve_app(DASH, "ArdaLink Operator Dashboard")
+
+    def do_POST(self):
+        if self.path.startswith("/api/") or self.path.startswith("/ws"):
+            self._proxy()
+            return
+        self.send_error(404)
+
+    def do_PUT(self):
+        if self.path.startswith("/api/"):
+            self._proxy()
+            return
+        self.send_error(404)
+
+    def do_DELETE(self):
+        if self.path.startswith("/api/"):
+            self._proxy()
+            return
+        self.send_error(404)
+
+    def do_PATCH(self):
+        if self.path.startswith("/api/"):
+            self._proxy()
+            return
+        self.send_error(404)
+
     def log_message(self, *args, **kwargs):
         pass
 
-with socketserver.TCPServer(("127.0.0.1", PORT), H) as s:
+with socketserver.ThreadingTCPServer(("127.0.0.1", PORT), H) as s:
+    s.allow_reuse_address = True
     s.serve_forever()
 PYEOF
 
