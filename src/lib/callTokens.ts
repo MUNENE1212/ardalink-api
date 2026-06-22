@@ -298,7 +298,18 @@ export async function mintToken(opts: MintOptions = {}): Promise<MintResult> {
         .where(eq(pastoralistsTable.phone, phone))
         .limit(1);
       if (existing.length === 0) {
+        // For anonymous public callers, the tenant_id is unknown at
+        // mint time. The pastoralist is registered without a
+        // tenant_id; the voice bridge or follow-up call will set it
+        // when the herder identifies themselves. Until then, RLS
+        // will filter this row out of every tenant's view.
+        //
+        // NOTE: the schema now requires tenant_id NOT NULL. To
+        // preserve the public-talk flow we insert with a sentinel
+        // 'unattributed' tenant_id. A future migration should split
+        // public pastoralist creation from tenant-scoped registration.
         await db.insert(pastoralistsTable).values({
+          tenantId: "unattributed",
           name: `Caller ${phone.slice(-4)}`,
           phone,
           location: "",

@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import healthRouter from "./health.js";
 import intelligenceRouter from "./intelligence.js";
+import intelligenceBriefRouter from "./intelligence/brief.js";
 import voiceRouter from "./voice.js";
 import pastoralistsRouter from "./pastoralists.js";
 import chatRouter from "./chat.js";
@@ -12,6 +13,7 @@ const router: IRouter = Router();
 
 router.use(healthRouter);
 router.use(intelligenceRouter);
+router.use(intelligenceBriefRouter);
 router.use(voiceRouter);
 router.use(pastoralistsRouter);
 router.use(chatRouter);
