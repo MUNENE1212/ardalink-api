@@ -21,9 +21,12 @@ import type {
 } from '../types.js';
 import { LlmError } from '../types.js';
 
+// Timeout is read by the registry, but we keep a local copy for
+// the AbortController inside this client.
+const TIMEOUT_MS = parseInt(process.env.LLM_TIMEOUT_MS ?? '90000', 10);
+
 const ZAI_ENDPOINT = 'https://api.z.ai/api/paas/v4';
 const DEFAULT_MODEL = process.env.ZAI_DEFAULT_MODEL ?? 'glm-4.5-flash';
-const TIMEOUT_MS = parseInt(process.env.LLM_TIMEOUT_MS ?? '15000', 10);
 
 export class ZaiClient implements LlmClient {
   readonly name = 'z';
@@ -55,6 +58,11 @@ export class ZaiClient implements LlmClient {
     const body: Record<string, unknown> = {
       model: DEFAULT_MODEL,
       messages: req.messages.map((m) => ({ role: m.role, content: m.content })),
+      // Disable z.ai's default Thinking Mode — without this, the
+      // model burns all of its output budget on internal reasoning
+      // and the response takes 15-30s with empty content. With
+      // thinking disabled, the model produces content in ~3s.
+      thinking: { type: 'disabled' },
     };
     if (req.temperature !== undefined) body.temperature = req.temperature;
     if (req.maxTokens !== undefined) body.max_tokens = req.maxTokens;

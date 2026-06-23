@@ -40,6 +40,15 @@ const CACHE_TTL_SECONDS = parseInt(
   10,
 );
 
+const TIMEOUT_MS = parseInt(
+  process.env.LLM_TIMEOUT_MS ?? '90000',  // 90s default: z.ai's GLM-4.5-Flash
+                                          // can take 30-60s on Swahili prompts
+                                          // (the model thinks before responding
+                                          // unless thinking is disabled, which
+                                          // the ZaiClient sets explicitly)
+  10,
+);
+
 interface CacheEntry {
   response: LlmResponse;
   expiresAt: number;
@@ -120,7 +129,7 @@ export async function complete(
   try {
     const result = await withTimeout(
       primary.complete(req),
-      parseInt(process.env.LLM_TIMEOUT_MS ?? '15000', 10),
+      TIMEOUT_MS,
       `${primary.name} primary`,
     );
     cache.set(cacheKey(req, task), {
@@ -149,7 +158,7 @@ export async function complete(
   }
   const result = await withTimeout(
     fallback.complete(req),
-    parseInt(process.env.LLM_TIMEOUT_MS ?? '15000', 10),
+    TIMEOUT_MS,
     `${fallback.name} fallback`,
   );
   cache.set(cacheKey(req, task), {

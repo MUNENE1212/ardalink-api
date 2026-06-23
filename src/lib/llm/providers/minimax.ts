@@ -24,9 +24,10 @@ import type {
 } from '../types.js';
 import { LlmError } from '../types.js';
 
+const TIMEOUT_MS = parseInt(process.env.LLM_TIMEOUT_MS ?? '90000', 10);
+
 const MINIMAX_ENDPOINT = 'https://api.minimax.io/v1';
 const DEFAULT_MODEL = process.env.MINIMAX_DEFAULT_MODEL ?? 'MiniMax-M3';
-const TIMEOUT_MS = parseInt(process.env.LLM_TIMEOUT_MS ?? '15000', 10);
 
 export class MinimaxClient implements LlmClient {
   readonly name = 'minimax';
