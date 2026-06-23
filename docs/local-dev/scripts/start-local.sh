@@ -244,7 +244,7 @@ TALK = WEB / "talk" / "dist"
 PORT = 8080
 API_UPSTREAM = "http://127.0.0.1:3000"
 
-class H(http.server.BaseHTTPRequestHandler):
+class H(http.server.SimpleHTTPRequestHandler):
     def _send_static(self, target, ctype=None):
         try:
             data = target.read_bytes()
@@ -275,7 +275,7 @@ class H(http.server.BaseHTTPRequestHandler):
         length = int(self.headers.get("Content-Length", "0") or 0)
         body = self.rfile.read(length) if length else None
         req = urllib.request.Request(url, data=body, method=self.command)
-        for h in ("Content-Type", "Authorization", "X-Tenant-ID", "X-Tenant-Sig"):
+        for h in ("Content-Type", "Authorization", "X-Tenant-ID", "X-Tenant-Sig", "Origin", "Cookie"):
             v = self.headers.get(h)
             if v: req.add_header(h, v)
         try:
@@ -365,6 +365,15 @@ or use the API directly for now.</p>
             self._proxy()
             return
         self.send_error(404)
+
+    def do_OPTIONS(self):
+        # CORS preflight: respond 204 with the headers the browser needs
+        self.send_response(204)
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Tenant-ID, X-Tenant-Sig")
+        self.send_header("Access-Control-Max-Age", "86400")
+        self.end_headers()
 
     def log_message(self, *args, **kwargs):
         pass
