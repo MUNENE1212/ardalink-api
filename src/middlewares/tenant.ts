@@ -19,7 +19,7 @@ function jwtSecret(): string {
  * Express middleware that enforces a valid JWT on every request and attaches
  * the decoded `tenant_id` claim to `req.tenant`.
  *
- * Bypass paths (health, docs) are listed in `PUBLIC_PATHS` below.
+ * Bypass paths (health, docs, login) are listed in `PUBLIC_PATHS` below.
  */
 export function tenantMiddleware(
   req: Request,
@@ -55,4 +55,7 @@ const PUBLIC_PATHS = new Set<string>([
   "/api/healthz",
   "/api/docs",
   "/api/redoc",
+  "/api/auth/login",
+  "/api/auth/logout",
+  "/api/auth/me",
 ]);

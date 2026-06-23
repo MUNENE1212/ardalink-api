@@ -23,5 +23,5 @@ process.env.AFRICASTALKING_API_KEY = "test-key";
 process.env.AFRICASTALKING_CALLER_ID = "+254700000000";
 process.env.RECIPIENT_PHONE = "+254700000000";
 process.env.SESSION_SECRET = "test-session-secret-at-least-32-characters-long";
-process.env.JWT_SECRET = "test-jwt-secret-not-a-real-key";
+process.env.JWT_SECRET = "test-jwt-secret-at-least-32-chars-long";
 process.env.TENANT_ATTESTATION_SECRET = "test-attestation-secret-32-chars-min";

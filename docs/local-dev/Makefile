@@ -18,7 +18,7 @@ PUBLIC_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 API_ROOT   := $(abspath $(PUBLIC_DIR)/../..)
 REPO_ROOT  := $(abspath $(PUBLIC_DIR)/../../..)
 
-.PHONY: setup up down verify fresh logs ps token brief help clean
+.PHONY: setup up down verify fresh logs ps token brief login login-test help clean
 
 help:
 	@echo "ArdaLink local-dev targets:"
@@ -92,3 +92,35 @@ brief:
 	curl -s -H "Authorization: Bearer $$TOKEN" \
 	  "http://localhost:3000/api/intelligence/brief?lang=$$LANG_VAL" \
 	  | python3 /tmp/ardalink-local/print-brief.py
+# Print demo login credentials (POST /api/auth/login)
+# Useful for the Tuesday demo. The 4 seeded admins are:
+#   bula-pesa@ardalink.test    / bula-pesa        (tenant=bula-pesa,  role=operator)
+#   garbatulla@ardalink.test   / garbatulla       (tenant=garbatulla, role=operator)
+#   merti@ardalink.test        / merti            (tenant=merti,      role=operator)
+#   admin@ardalink.test        / admin-secret-2024 (tenant=bula-pesa,  role=admin)
+login:
+	@echo "Demo admin credentials (POST /api/auth/login):"
+	@echo
+	@printf "  %-30s %-25s %-15s %s\n" "EMAIL" "PASSWORD" "TENANT" "ROLE"
+	@printf "  %-30s %-25s %-15s %s\n" "bula-pesa@ardalink.test"  "bula-pesa"        "bula-pesa"  "operator"
+	@printf "  %-30s %-25s %-15s %s\n" "garbatulla@ardalink.test" "garbatulla"       "garbatulla" "operator"
+	@printf "  %-30s %-25s %-15s %s\n" "merti@ardalink.test"      "merti"            "merti"      "operator"
+	@printf "  %-30s %-25s %-15s %s\n" "admin@ardalink.test"      "admin-secret-2024" "bula-pesa"  "admin"
+	@echo
+	@echo "Rotate these before any non-dev deploy (start-local.sh, .env.example)."
+
+# Smoke-test the login flow end-to-end
+login-test:
+	@. $(PUBLIC_DIR)/.env 2>/dev/null || true; \
+	EMAIL="$${EMAIL:-bula-pesa@ardalink.test}"; \
+	PW="$${PW:-bula-pesa}"; \
+	echo "POST /api/auth/login as $$EMAIL ..."; \
+	RESP=$$(curl -s -X POST -H "Content-Type: application/json" \
+	  -d "{\"email\":\"$$EMAIL\",\"password\":\"$$PW\"}" \
+	  http://localhost:3000/api/auth/login); \
+	TOK=$$(echo "$$RESP" | python3 -c "import sys,json;d=json.load(sys.stdin);print(d.get('token',''))"); \
+	if [ -z "$$TOK" ]; then echo "  $$RESP"; exit 1; fi; \
+	TID=$$(echo "$$RESP" | python3 -c "import sys,json;d=json.load(sys.stdin);print(d.get('tenant_id',''))"); \
+	echo "  token issued for tenant=$$TID"; \
+	echo "  GET /api/auth/me with that token ..."; \
+	curl -s -H "Authorization: Bearer $$TOK" http://localhost:3000/api/auth/me; echo

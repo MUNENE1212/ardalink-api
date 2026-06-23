@@ -196,3 +196,29 @@ UNION ALL
 SELECT 'reports/garbatulla', COUNT(*) FROM public.ground_truth_reports WHERE tenant_id = 'garbatulla'
 UNION ALL
 SELECT 'reports/merti',      COUNT(*) FROM public.ground_truth_reports WHERE tenant_id = 'merti';
+-- ---------------------------------------------------------------------------
+-- 4. Admin users (operators). One per tenant + a super-admin.
+--
+-- Demo credentials (rotate before any non-dev deploy):
+--   bula-pesa@ardalink.test    / bula-pesa
+--   garbatulla@ardalink.test   / garbatulla
+--   merti@ardalink.test        / merti
+--   admin@ardalink.test        / admin-secret-2024   (super-admin, tenant=bula-pesa)
+--
+-- password_hash format: <salt-hex>:<scrypt-hash-hex>
+-- scrypt N=2^14, keylen=64, salt=16 bytes random
+-- ---------------------------------------------------------------------------
+INSERT INTO public.admin_users (email, password_hash, tenant_id, display_name, role) VALUES
+  ('bula-pesa@ardalink.test',
+   '1a96892f327c940b07cc79300af59cf6:578c567dada55fe196d8578fe76c033d1fbbfd4994d57ea6727efadbf2023b8ed71ec895cffe349f6f11b3e8e9f4ecb5879b880d6be0da043e33392dada08d8e',
+   'bula-pesa', 'Bula Pesa Operator', 'operator'),
+  ('garbatulla@ardalink.test',
+   '484f9e1ce229bdccdcefe75628e9b969:4e300efc2d6e02d093bbf200b966f607648a993cd742a4482fae0e88b929ee7006324178c546396a92572c2526230b321d17277a433258d576f574d9a8bcdb01',
+   'garbatulla', 'Garbatulla Operator', 'operator'),
+  ('merti@ardalink.test',
+   'd0da46b07bfa17f7845fb78df865e44d:4c49ffec4727079a500316d70d8efa426507debd540eadc9a05d7b551e11732f40ebd96d5c2629f61f866592c638165af1cc619ee5f660138557b6422168b6e4',
+   'merti', 'Merti Operator', 'operator'),
+  ('admin@ardalink.test',
+   '66e155393a3d7f6ffcbb31cb81f32a42:862ed3af464671e6ec9fef3af544f64917484d7cde33f9bd52841f0db8b79bce1128e862ff59f5fc5c9971b567199776ba3a15325de545ee04bcfb392f168a67',
+   'bula-pesa', 'System Admin', 'admin')
+ON CONFLICT (email) DO NOTHING;
