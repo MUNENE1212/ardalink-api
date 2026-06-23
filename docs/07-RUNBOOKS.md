@@ -4,11 +4,11 @@
 
 ## On-call
 
-| Severity | Response | Who |
-|---|---|---|
-| SEV-1 | 15 min | Primary on-call |
-| SEV-2 | 1 hour | Primary on-call |
-| SEV-3 | next business day | Triage queue |
+| Severity | Response          | Who             |
+| -------- | ----------------- | --------------- |
+| SEV-1    | 15 min            | Primary on-call |
+| SEV-2    | 1 hour            | Primary on-call |
+| SEV-3    | next business day | Triage queue    |
 
 ## Common incidents
 

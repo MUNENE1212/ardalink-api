@@ -4,12 +4,12 @@
 
 ## Threat model (summary)
 
-| Surface | Threat | Control |
-|---|---|---|
-| WebSocket upgrades | Hijack, denial-of-wallet | JWT auth (Phase 8) |
-| Africa's Talking callback | Forged call events | HMAC verify (Phase 8) |
-| Azure OpenAI key | Token theft | Cloud secret manager (Phase 8) |
-| Ground truth DB | Cross-tenant leak | Row-level security (Phase 2) |
+| Surface                   | Threat                   | Control                        |
+| ------------------------- | ------------------------ | ------------------------------ |
+| WebSocket upgrades        | Hijack, denial-of-wallet | JWT auth (Phase 8)             |
+| Africa's Talking callback | Forged call events       | HMAC verify (Phase 8)          |
+| Azure OpenAI key          | Token theft              | Cloud secret manager (Phase 8) |
+| Ground truth DB           | Cross-tenant leak        | Row-level security (Phase 2)   |
 
 ## Secrets
 
