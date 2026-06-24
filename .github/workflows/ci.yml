@@ -16,7 +16,7 @@ jobs:
         with:
           node-version: '24'
           cache: 'pnpm'
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: 9
       - run: pnpm install --frozen-lockfile
@@ -33,7 +33,7 @@ jobs:
         with:
           node-version: '24'
           cache: 'pnpm'
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with: { version: 9 }
       - run: pnpm install --frozen-lockfile
       - run: pnpm run test:cov
@@ -59,7 +59,7 @@ jobs:
         with:
           node-version: '24'
           cache: 'pnpm'
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with: { version: 9 }
       - run: pnpm install --frozen-lockfile
       - run: pnpm audit --prod --audit-level=high
